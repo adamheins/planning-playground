@@ -3,8 +3,6 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 from pgraph import UGraph
 
-import IPython
-
 
 class Rectangle:
     """Rectangular obstacle."""
@@ -49,7 +47,7 @@ class Circle:
 
 
 class Workspace:
-    """Workspace for the robot."""
+    """2D workspace for the robot."""
 
     def __init__(self, width, height):
         """Workspace is a rectangle with given width and height centered at (0, 0)."""
@@ -180,6 +178,19 @@ class PRM:
 
 
 def grid_neighbour_indices(i, j, nx, ny):
+    """Get the index of the current vertex and neighbouring vertices in a 2D
+       grid but stored in a 1D array.
+
+    Parameters:
+       i: x-index
+       j: y-index
+       nx: length of x
+       ny: length of y
+
+    Returns: a tuple (my_idx, neighbour_idx), where
+        my_idx is the index of the current cell
+        neighbour_idx is a list of neighbour indices
+    """
     my_idx = ny * i + j
     neighbour_idx = []
 
@@ -203,7 +214,14 @@ def grid_neighbour_indices(i, j, nx, ny):
 
 
 class Grid:
+    """2D grid-based planner.
+
+    Discretizes the workspace and connects neighbouring points, then plans
+    through the resulting graph.
+    """
     def __init__(self, workspace, step):
+        # NOTE: it is convenient to lean on the pgraph library for graph-based
+        # planning, though for the grid case this is quite inefficient
         self.graph = UGraph()
 
         # add a vertex at the corner of every grid cell
@@ -270,17 +288,16 @@ def main():
     goal = (4, 4)
 
     # construct PRM and plan a path connecting start to goal
-    # prm = PRM(workspace, n=30, k=10)
-    # path = prm.query(start, goal)
-    grid = Grid(workspace, 0.5)
-    path = grid.query(start, goal)
+    # alternatively, use a grid:
+    # planner = Grid(workspace, 0.5)
+    planner = PRM(workspace, n=30, k=10)
+    path = planner.query(start, goal)
 
     # plot the results
     plt.figure()
     ax = plt.gca()
     workspace.draw(ax)
-    # prm.draw(ax)
-    grid.draw(ax)
+    planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
     ax.plot(path[:, 0], path[:, 1], color="r")
