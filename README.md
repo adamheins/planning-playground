@@ -19,7 +19,9 @@ python3 -m pip install -r requirements.txt
 
 ### Geometry
 
-Basic example of transforms associated with 2-link planar manipulator.
+Basic example of transforms associated with 2-link planar manipulator. In the
+diagram below, there are four frames, where the transformation matrix $T_{ij}$
+maps points expressed in Frame $j$ to Frame $i$.
 
 ![Geometry diagram](./manipulator_frames.svg)
 
