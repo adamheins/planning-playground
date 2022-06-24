@@ -50,7 +50,7 @@ def main():
     T_03 = T_02 @ T_23
 
     # We can easily invert transforms, such that T @ inv(T) == np.eye(3)
-    T_30 = transformation_matrix(T_03)
+    T_30 = invert_transformation_matrix(T_03)
 
     # Homogeneous points in 2D have the form (x, y, 1)
     r0 = np.array([0, 0, 1])  # origin
