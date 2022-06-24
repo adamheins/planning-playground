@@ -15,12 +15,20 @@ cd planning-playground
 python3 -m pip install -r requirements.txt
 ```
 
+## Usage
+
+### Geometry
+
+Basic example of transforms associated with 2-link planar manipulator.
+
+![Geometry diagram](./manipulator_frames.svg)
+
 Run the script:
 ```
-python3 planning.py
+python3 geometry.py
 ```
 
-## Usage
+### Planning
 
 Currently contains a basic 2D workspace with rectangular and circular
 obstacles. Planning is done between two points (start is green and goal is
@@ -28,3 +36,8 @@ red). Planners are:
 
 * Probabilistic road map (PRM)
 * Grid
+
+Run the script:
+```
+python3 planning.py
+```
