@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
-from pgraph import UGraph
+from pgraph import UGraph, DGraph
 
 
 class Rectangle:
@@ -116,12 +116,66 @@ class Workspace:
         return np.array(samples)
 
 
-class PRM:
+class GraphPlanner:
+    def __init__(self, graph):
+        self.graph = graph
+
+    def draw(self, ax, vertices=True, edges=True):
+        if vertices:
+            for vertex in self.graph:
+                x, y = vertex.coord
+                ax.plot(x, y, "x", color="b")
+
+        if edges:
+            for edge in self.graph.edges():
+                v1, v2 = edge.endpoints
+                ax.plot(
+                    [v1.coord[0], v2.coord[0]],
+                    [v1.coord[1], v2.coord[1]],
+                    color=(0, 0, 1, 0.25),
+                )
+
+    def k_nearest_neighbours(self, v, k):
+        """Get k nearest neighbours to vertex v."""
+        # get distance to each vertex in the graph
+        dists = []
+        for vo in self.graph:
+            if v is vo:
+                continue
+            dists.append((vo.distance(v.coord), vo))
+
+        # sort nearest to farthest
+        dists.sort(key=lambda x: x[0])
+
+        # return the k closest ones
+        return [vo for _, vo in dists[:k]]
+
+    def neighbours_within_dist(self, v, dist):
+        """Get all vertices within dist of vertex v."""
+        dists = []
+        for vo in self.graph:
+            if v is vo:
+                continue
+            dists.append((vo.distance(v.coord), vo))
+
+        # return all neighbours with distance dist
+        return [vo for d, vo in dists if d <= dist]
+
+    def query(self, start, goal):
+        """Get the shortest path between the start and goal points, if one exists."""
+        vs, _ = self.graph.closest(start)
+        vg, _ = self.graph.closest(goal)
+        idx, _, _ = self.graph.path_Astar(vs, vg)
+        points = np.array([self.graph[i].coord for i in idx])
+        return np.vstack((start, points, goal))
+
+
+class PRM(GraphPlanner):
     """Probabilistic road-map for multi-query planning."""
 
     def __init__(self, workspace, n, k):
+        super().__init__(UGraph())
         self.workspace = workspace
-        self.graph = UGraph()
         self.add_vertices(n, k)
 
     def add_vertices(self, n, k):
@@ -137,44 +191,64 @@ class PRM:
             point = self.workspace.sample()
             v = self.graph.add_vertex(point)
 
-            # compute distance to all current points in the graph
-            dists = []
-            for vo in self.graph:
-                if v is vo:
-                    continue
-                dists.append((vo.distance(point), vo))
-            dists.sort(key=lambda x: x[0])
-
             # add edges between the new vertex and k nearest neighbours if the
             # edge between them is collision-free
-            for _, vo in dists[:k]:
+            for vo in self.k_nearest_neighbours(v, k):
                 if self.workspace.edge_is_in_collision(v.coord, vo.coord):
                     continue
                 v.connect(vo)
 
-    def draw(self, ax, vertices=True, edges=True):
-        """Draw the PRM on the provided axes ax."""
-        if vertices:
-            for vertex in self.graph:
-                x, y = vertex.coord
-                ax.plot(x, y, "x", color="b")
 
-        if edges:
-            for edge in self.graph.edges():
-                v1, v2 = edge.endpoints
-                ax.plot(
-                    [v1.coord[0], v2.coord[0]],
-                    [v1.coord[1], v2.coord[1]],
-                    color=(0, 0, 1, 0.25),
-                )
+class RRG(GraphPlanner):
+    """Rapidly-exploring random graph."""
 
-    def query(self, start, goal):
-        """Get the shortest path between the start and goal points, if one exists."""
-        vs, _ = self.graph.closest(start)
-        vg, _ = self.graph.closest(goal)
-        idx, _, _ = self.graph.path_Astar(vs, vg)
-        points = np.array([self.graph[i].coord for i in idx])
-        return np.vstack((start, points, goal))
+    def __init__(self, workspace, q0):
+        super().__init__(DGraph())
+        self.workspace = workspace
+        self.root = self.graph.add_vertex(q0)
+
+    def add_vertices(
+        self,
+        n,
+        min_edge_len=0.25,
+        max_edge_len=1,
+        near_dist=1,
+        connect_multiple_vertices=True,
+    ):
+        """Add n vertices to the RRG."""
+        new_size = self.graph.n + n
+
+        while self.graph.n < new_size:
+            q = self.workspace.sample()
+
+            # nearest neighbour in the graph
+            v_nearest, dist = self.graph.closest(q)
+            if dist < min_edge_len:
+                continue
+            q_nearest = v_nearest.coord
+
+            # move toward q as much as possible
+            if dist > max_edge_len:
+                q = q_nearest + (q - q_nearest) * max_edge_len / dist
+
+            # add the new vertex if not in collision
+            if self.workspace.edge_is_in_collision(q_nearest, q):
+                continue
+            v = self.graph.add_vertex(q)
+            v_nearest.connect(v)
+
+            # find and add additional nearby vertices
+            if connect_multiple_vertices:
+                vs_near = self.neighbours_within_dist(v, near_dist)
+                for vo in vs_near:
+                    # don't make duplicate edges
+                    if vo.isneighbour(v):
+                        continue
+
+                    # avoid collisions
+                    if self.workspace.edge_is_in_collision(vo.coord, v.coord):
+                        continue
+                    vo.connect(v)
 
 
 def grid_neighbour_indices(i, j, nx, ny):
@@ -219,6 +293,7 @@ class Grid:
     Discretizes the workspace and connects neighbouring points, then plans
     through the resulting graph.
     """
+
     def __init__(self, workspace, step):
         # NOTE: it is convenient to lean on the pgraph library for graph-based
         # planning, though for the grid case this is quite inefficient
@@ -290,8 +365,11 @@ def main():
     # construct PRM and plan a path connecting start to goal
     # alternatively, use a grid:
     # planner = Grid(workspace, 0.5)
-    planner = PRM(workspace, n=30, k=10)
-    path = planner.query(start, goal)
+    # planner = PRM(workspace, n=30, k=10)
+    # path = planner.query(start, goal)
+
+    planner = RRG(workspace, start)
+    planner.add_vertices(n=100)
 
     # plot the results
     plt.figure()
@@ -300,7 +378,7 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    ax.plot(path[:, 0], path[:, 1], color="r")
+    # ax.plot(path[:, 0], path[:, 1], color="r")
     plt.show()
 
 
