@@ -400,7 +400,7 @@ def main():
     plt.figure()
     ax = plt.gca()
     workspace.draw(ax)
-    planner.draw(ax, by_component=True)
+    planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
 
