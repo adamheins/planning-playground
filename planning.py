@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
 from pgraph import UGraph, DGraph
+import time
 
 import IPython
 
@@ -194,6 +195,7 @@ class GraphPlanner:
 
     def query(self, start, goal):
         """Get the shortest path between the start and goal points, if one exists."""
+        start_time = time.time()
         vs, _ = self.graph.closest(start)
         vg, _ = self.graph.closest(goal)
         path = self.graph.path_Astar(vs, vg)
@@ -201,6 +203,7 @@ class GraphPlanner:
             return None
         idx = path[0]
         points = np.array([self.graph[i].coord for i in idx])
+        self.query_time = time.time()-start_time
         return np.vstack((start, points, goal))
 
 
@@ -218,7 +221,7 @@ class PRM(GraphPlanner):
         between thm are collision-free.
         """
         new_size = self.graph.n + n
-
+        start_time = time.time()
         while self.graph.n < new_size:
             # generate a new (collision-free) point
             point = self.workspace.sample()
@@ -230,6 +233,7 @@ class PRM(GraphPlanner):
                 if self.workspace.edge_is_in_collision(v.coord, vo.coord):
                     continue
                 v.connect(vo)
+        self.preprocessing_time = time.time()-start_time
 
 
 class RRG(GraphPlanner):
@@ -257,7 +261,7 @@ class RRG(GraphPlanner):
     ):
         """Add n vertices to the RRG."""
         new_size = self.graph.n + n
-
+        start_time = time.time()
         while self.graph.n < new_size:
             # TODO we can actually try to connect as close as possible to a
             # vertex in collision
@@ -294,6 +298,8 @@ class RRG(GraphPlanner):
                     if self.workspace.edge_is_in_collision(vo.coord, v.coord):
                         continue
                     vo.connect(v)
+        self.preprocessing_time = time.time()-start_time
+
 
 
 def grid_neighbour_indices(i, j, nx, ny):
@@ -395,7 +401,8 @@ def main():
     # planner.add_vertices(n=100)
 
     path = planner.query(start, goal)
-
+    print("preprocessing time:", planner.preprocessing_time)
+    print("query time:", planner.query_time)
     # plot the results
     plt.figure()
     ax = plt.gca()
