@@ -202,12 +202,12 @@ class GraphPlanner:
         path = self.graph.path_Astar(vs, vg)
         if path is None:
             return None
-       
+
         # T = UGraph()
         # T.add_vertex(vs)
         # for i in path:
         #     i
-        
+
         self.query_time = time.time()-start_time
         idx = path[0]
         points = np.array([self.graph[i].coord for i in idx])
@@ -219,7 +219,7 @@ class GraphPlanner:
             t.graph.add_vertex(points[i])
             t.graph.add_edge(points[i-1],points[i])
         return t
-  
+
 
 
 
@@ -326,29 +326,40 @@ class RRG(GraphPlanner):
         ta.graph.add_vertex(vs)
         tb.graph.add_vertex(vg)
         for i in range(k):
+            # plt.figure()
+            # ax = plt.gca()
+            # self.workspace.draw(ax)
+            # self.draw(ax)
+            # ax.plot(start[0], start[1], "o", color="g")
+            # ax.plot(goal[0], goal[1], "o", color="r")
+            # #path.draw(ax,rgb=(0,1,0))
+            # ta.draw(ax,rgb=(1,0,0))
+            # tb.draw(ax,rgb=(0,1,0))
+
+            # plt.show()
             qn,v_ta,_ = self.closest_vertex_trees(ta)
             qs = self.stopping_configuration(v_ta,qn)
-            if qn != qs and not self.workspace.edge_is_in_collision(v_ta.coord,qn.coord):
+            if (qn.coord[0],qn.coord[1]) != (qs.coord[0],qs.coord[1]) and not self.workspace.edge_is_in_collision(v_ta.coord,qn.coord):
                 ta.graph.add_vertex(qs)
                 ta.graph.add_edge(qs, v_ta)
                 qn_prime, v_tb, _ = self.closest_vertex_trees(tb)
                 qs_prime = self.stopping_configuration(v_tb,qn_prime)
-                if qn_prime!=qs_prime and not self.workspace.edge_is_in_collision(v_tb.coord,qs_prime.coord):
+                if (qn_prime.coord[0],qn_prime.coord[1])!=(qs_prime.coord[0],qs_prime.coord[1])and not self.workspace.edge_is_in_collision(v_tb.coord,qs_prime.coord):
                     tb.graph.add_vertex(qs_prime)
                     tb.graph.add_edge(v_tb,qs_prime)
                 elif not self.workspace.edge_is_in_collision(v_tb.coord,qn_prime.coord):
                     tb.graph.add_vertex(qn_prime)
                     tb.graph.add_vertex(v_tb,qn_prime)
-                if self.touch(ta,tb):
-                    self.query_time = time.time()-start_time
-                    return (ta,tb)
-                #add line to check for tree lenght
             elif not self.workspace.edge_is_in_collision(qn.coord,v_ta.coord):
                 ta.graph.add_vertex(qn)
                 ta.graph.add_edge(qn,v_ta)
-            else:
-                self.query_time = time.time()-start_time
-                return (None,None)
+            if self.touch(ta,tb):
+                    self.query_time = time.time()-start_time
+                    return (ta,tb)
+            if len([i for i in ta.graph])-len([i for i in tb.graph])>0:
+                    ta,tb = tb,ta
+        self.query_time = time.time()-start_time
+        return (None,None)
 
     def closest_vertex_trees(self, T):
         """Find the closest vertex to a given a tree T"""
@@ -361,7 +372,7 @@ class RRG(GraphPlanner):
             if (vertex_coord in vertices_coord):
                 continue
             else:
-                space.append(vertex) 
+                space.append(vertex)
         #space = [i for i in (self.graph and not vertices)]
         min_dist = space[0].distance(vertices[0])
         v_closest = space[0]
@@ -369,12 +380,12 @@ class RRG(GraphPlanner):
         for vertex in vertices:
             for v in space:
                 d = vertex.distance(v)
-                
+
                 if d < min_dist:
                     min_dist = d
                     v_closest = v
                     v_closest_T = vertex
-        return v_closest, v_closest_T, d     
+        return v_closest, v_closest_T, d
 
     def stopping_configuration(self,v,q, step = 0.1):
         '''return closest point close to boundary of obstacle '''
@@ -473,6 +484,7 @@ def main():
         Rectangle((-2, -4), 6, 1),
         Rectangle((-2, 1), 3, 1),
         Rectangle((-4, 3), 1, 2),
+        Circle((-3,2),0.5)
     ]
 
     # start and goal locations
@@ -490,8 +502,8 @@ def main():
     # planner = PRM(workspace)
     # planner.add_vertices(n=100)
 
-    path = planner.query(start, goal)
-    #T1,T2 = planner.double_trees(start,goal,10000)
+    #path = planner.query(start, goal)
+    T1,T2 = planner.double_trees(start,goal,10000)
     print("preprocessing time:", planner.preprocessing_time)
     print("query time:", planner.query_time)
     # plot the results
@@ -501,9 +513,9 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    path.draw(ax,rgb=(0,1,0)) 
-    # T1.draw(ax,rgb=(1,0,0))
-    # T2.draw(ax,rgb=(0,1,0))
+    #path.draw(ax,rgb=(0,1,0))
+    T1.draw(ax,rgb=(1,0,0))
+    T2.draw(ax,rgb=(0,1,0))
 
     plt.show()
     # if path is None:
