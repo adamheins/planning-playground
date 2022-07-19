@@ -197,6 +197,23 @@ class GraphPlanner:
 
         return v_closest, min_dist
 
+    def closest_vertex_graph(self, T):
+        """Find the closest vertex belonging to graph to a another given graph T"""
+        vertices_graph_T = T.graph
+        vertices_graph = self.graph
+        min_dist =  vertices_graph[0].distance(vertices_graph_T[0])
+        v_closest =  vertices_graph[0]
+        v_closest_T = vertices_graph_T[0]
+        for vertex in vertices_graph_T:
+            for v in  vertices_graph:
+                d = vertex.distance(v)
+
+                if d < min_dist:
+                    min_dist = d
+                    v_closest = v
+                    v_closest_T = vertex
+        return v_closest, v_closest_T, min_dist
+
     def query(self, start, goal):
         """Get the shortest path between the start and goal points, if one exists."""
         start_time = time.time()
@@ -205,11 +222,6 @@ class GraphPlanner:
         path = self.graph.path_Astar(vs, vg)
         if path is None:
             return None
-
-        # T = UGraph()
-        # T.add_vertex(vs)
-        # for i in path:
-        #     i
 
         self.query_time = time.time()-start_time
         idx = path[0]
@@ -262,7 +274,7 @@ class RRG(GraphPlanner):
     added with connect_multiple_vertices=False.
     """
 
-    def __init__(self, workspace, q0, qf):
+    def __init__(self, workspace, q0):
         super().__init__(UGraph())
         self.workspace = workspace
         self.graph.add_vertex(q0)
@@ -329,15 +341,7 @@ class RRG(GraphPlanner):
         new_size = self.graph.n + n
         start_time = time.time()
         while self.graph.n < new_size:
-            # plt.figure()
-            # ax = plt.gca()
-            # self.workspace.draw(ax)
-            # self.draw(ax)
-            # ax.plot(start[0], start[1], "o", color="g")
-            # ax.plot(stop[0], stop[1], "o", color="r")
-            # self.draw(ax,rgb=(0,1,0))
-
-            # plt.show()
+            #TODO maybe change min and max edge len based on how many points have been taken?
             q = self.workspace.sample(self)
 
             v_nearest, dist = self.closest_vertex(q)
@@ -366,7 +370,6 @@ class RRG(GraphPlanner):
 
     def end_condition(self,goal,goal_dist=0.5):
         v_nearest,dist = self.closest_vertex(goal)
-        print(dist)
         if dist<=goal_dist and not self.workspace.edge_is_in_collision(v_nearest.coord,goal):
             v=self.graph.add_vertex(goal)
             v.connect(v_nearest)
@@ -374,81 +377,77 @@ class RRG(GraphPlanner):
         return False
 
 
-    def double_trees(self, start, goal,k):
+    def double_trees(self, 
+        start, 
+        goal,
+        k=1000,
+        min_edge_len = 0.5,
+        max_edge_len = 1):
         """Use two trees, one starting from start one from goal"""
         start_time = time.time()
-        ta = GraphPlanner(UGraph())
-        tb = GraphPlanner(UGraph())
+        ta = RRG(self.workspace,start)
+        tb = RRG(self.workspace,goal)
         v_ta = ta.graph.add_vertex(start)
         v_tb = tb.graph.add_vertex(goal)
-        for i in range(k):
+        for _ in range(k):
             # plt.figure()
             # ax = plt.gca()
             # self.workspace.draw(ax)
             # self.draw(ax)
             # ax.plot(start[0], start[1], "o", color="g")
             # ax.plot(goal[0], goal[1], "o", color="r")
-            # path.draw(ax,rgb=(0,1,0))
             # ta.draw(ax,rgb=(1,0,0))
             # tb.draw(ax,rgb=(0,1,0))
 
             # plt.show()
-            qn = self.workspace.sample(self)
-            qs = self.stopping_configuration(v_ta,qn)
-            if (qn.coord[0],qn.coord[1]) != (qs.coord[0],qs.coord[1]) and not self.workspace.edge_is_in_collision(v_ta.coord,qn.coord):
-                ta.graph.add_vertex(qs)
-                ta.graph.add_edge(qs, v_ta)
-                qn_prime, v_tb, _ = self.closest_vertex_trees(tb)
-                qs_prime = self.stopping_configuration(v_tb,qn_prime)
-                if (qn_prime.coord[0],qn_prime.coord[1])!=(qs_prime.coord[0],qs_prime.coord[1])and not self.workspace.edge_is_in_collision(v_tb.coord,qs_prime.coord):
-                    tb.graph.add_vertex(qs_prime)
-                    tb.graph.add_edge(v_tb,qs_prime)
-                elif not self.workspace.edge_is_in_collision(v_tb.coord,qn_prime.coord):
-                    tb.graph.add_vertex(qn_prime)
-                    tb.graph.add_vertex(v_tb,qn_prime)
-            elif not self.workspace.edge_is_in_collision(qn.coord,v_ta.coord):
-                ta.graph.add_vertex(qn)
-                ta.graph.add_edge(qn,v_ta)
+            qn = self.workspace.sample(ta)
+            v_nearest, dist = ta.closest_vertex(qn)
+            if dist < min_edge_len:
+                continue
+            q_nearest = v_nearest.coord
+            
+            if dist > max_edge_len:
+                qn = q_nearest + (qn - q_nearest) * max_edge_len / dist
+            
+            if ta.workspace.edge_is_in_collision(q_nearest, qn):
+                continue
+            vn = ta.graph.add_vertex(qn)
+            ta.graph.add_edge(vn,v_nearest)
+
+            #operate on second tree
+            qn_prime = self.workspace.sample(self)
+            v_nearest, dist = tb.closest_vertex(qn_prime)
+            if dist < min_edge_len:
+                continue
+            q_nearest = v_nearest.coord
+            
+            if dist > max_edge_len:
+                qn_prime = q_nearest + (qn_prime - q_nearest) * max_edge_len / dist
+            
+            if tb.workspace.edge_is_in_collision(q_nearest, qn_prime):
+                continue
+            vn_prime=tb.graph.add_vertex(qn_prime)
+            tb.graph.add_edge(vn_prime,v_nearest)
+
             if self.touch(ta,tb):
+                    self.preprocessing_time=0
                     self.query_time = time.time()-start_time
                     return (ta,tb)
-            if len([i for i in ta.graph])-len([i for i in tb.graph])>10:
+            if ta.graph.n- tb.graph.n>10:
                     ta,tb = tb,ta
+        self.preprocessing_time=0
         self.query_time = time.time()-start_time
         return (None,None)
 
-    def closest_vertex_trees(self, T):
-        """Find the closest vertex to a given a tree T"""
-        #print(T.graph)
-        vertices = T.graph
-        vertices_coord = [(i.coord[0],i.coord[1]) for i in T.graph]
-        space =[]
-        for vertex in self.graph:
-            vertex_coord = (vertex.coord[0],vertex.coord[1])
-            if (vertex_coord in vertices_coord):
-                continue
-            else:
-                space.append(vertex)
-        #space = [i for i in (self.graph and not vertices)]
-        min_dist = space[0].distance(vertices[0])
-        v_closest = space[0]
-        v_closest_T = vertices[0]
-        for vertex in vertices:
-            for v in space:
-                d = vertex.distance(v)
+    
 
-                if d < min_dist:
-                    min_dist = d
-                    v_closest = v
-                    v_closest_T = vertex
-        return v_closest, v_closest_T, d
-
-    def touch(self,ta,tb):
-        vertices_coord_ta = [(i.coord[0],i.coord[1]) for i in ta.graph]
-        vertices_coord_tb = [(i.coord[0],i.coord[1]) for i in tb.graph]
-        for vertex in vertices_coord_ta:
-            if vertex in vertices_coord_tb:
-                return True
+    def touch(self,ta,tb,goal_dist=0.5):
+        v, v_tb, dist =ta.closest_vertex_graph(tb)
+        print(dist)
+        if dist<goal_dist:
+            v.connect(v_tb)
+            ta.graph.add_edge(v,v_tb)
+            return True
         return False
 
 
@@ -541,9 +540,9 @@ def main():
     goal = (4, 4)
 
     # use an RRT planner
-    planner = RRG(workspace, start, goal)
+    planner = RRG(workspace, start)
     #planner.add_vertices(n=100, connect_multiple_vertices=False)
-    path = planner.RRT(start,goal)
+    #path = planner.RRT(start,goal)
     # alternative: use a grid-based planner (only practical for small dimensions)
     # planner = Grid(workspace, 0.5)
 
@@ -552,7 +551,7 @@ def main():
     # planner.add_vertices(n=100)
 
     #path = planner.query(start, goal)
-    #T1,T2 = planner.double_trees(start,goal,10000)
+    T1,T2 = planner.double_trees(start,goal)
     print("preprocessing time:", planner.preprocessing_time)
     print("query time:", planner.query_time)
     # plot the results
@@ -562,9 +561,9 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    path.draw(ax,rgb=(0,1,0))
-    # T1.draw(ax,rgb=(1,0,0))
-    # T2.draw(ax,rgb=(0,1,0))
+    #path.draw(ax,rgb=(0,1,0))
+    T1.draw(ax,rgb=(1,0,0))
+    T2.draw(ax,rgb=(0,1,0))
 
     plt.show()
     # if path is None:
