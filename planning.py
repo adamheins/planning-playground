@@ -262,7 +262,7 @@ class RRG(GraphPlanner):
     def __init__(self, workspace, q0, qf):
         super().__init__(UGraph())
         self.workspace = workspace
-        self.root = self.graph.add_vertex(q0)
+        self.graph.add_vertex(q0)
 
         # TODO include this properly, bias toward it, etc.
         # self.goal = self.graph.add_vertex(qf)
@@ -297,24 +297,79 @@ class RRG(GraphPlanner):
                 continue
 
             v = self.graph.add_vertex(q)
-            # v.connect(v_nearest)
+            v.connect(v_nearest)
 
-            # # find and add additional nearby vertices
-            # if connect_multiple_vertices:
-            #     vs_near = self.neighbours_within_dist(v, near_dist)
-            #     for vo in vs_near:
-            #         # don't make duplicate edges
-            #         if vo.isneighbour(v):
-            #             continue
+            # find and add additional nearby vertices
+            if connect_multiple_vertices:
+                vs_near = self.neighbours_within_dist(v, near_dist)
+                for vo in vs_near:
+                    # don't make duplicate edges
+                    if vo.isneighbour(v):
+                        continue
 
-            #         if v.distance(vo.coord) < min_edge_len:
-            #             continue
+                    if v.distance(vo.coord) < min_edge_len:
+                        continue
 
-            #         # avoid collisions
-            #         if self.workspace.edge_is_in_collision(vo.coord, v.coord):
-            #             continue
-            #         vo.connect(v)
+                    # avoid collisions
+                    if self.workspace.edge_is_in_collision(vo.coord, v.coord):
+                        continue
+                    vo.connect(v)
         self.preprocessing_time = time.time()-start_time
+
+    def RRT(self,
+        start,
+        goal,
+        n=1000,
+        min_edge_len=0.5,
+        max_edge_len=1,
+        ):
+        new_size = self.graph.n + n
+        start_time = time.time()
+        while self.graph.n < new_size:
+            # plt.figure()
+            # ax = plt.gca()
+            # self.workspace.draw(ax)
+            # self.draw(ax)
+            # ax.plot(start[0], start[1], "o", color="g")
+            # ax.plot(stop[0], stop[1], "o", color="r")
+            # self.draw(ax,rgb=(0,1,0))
+
+            # plt.show()
+            q = self.workspace.sample()
+
+            v_nearest, dist = self.closest_vertex(q)
+            if dist < min_edge_len:
+                continue
+            q_nearest = v_nearest.coord
+
+            # move toward q as much as possible
+            if dist > max_edge_len:
+                q = q_nearest + (q - q_nearest) * max_edge_len / dist
+
+            # don't add if edge is in collision
+            if self.workspace.edge_is_in_collision(q_nearest, q):
+                continue
+
+            v = self.graph.add_vertex(q)
+            v.connect(v_nearest)
+            if self.end_condition(goal):
+                self.preprocessing_time = 0
+                self.query_time = time.time()-start_time
+                return self
+        self.preprocessing_time = 0
+        self.query_time = time.time()-start_time
+        return None
+        
+
+    def end_condition(self,goal,goal_dist=0.5):
+        v_nearest,dist = self.closest_vertex(goal)
+        print(dist)
+        if dist<=goal_dist and not self.workspace.edge_is_in_collision(v_nearest.coord,goal):
+            v=self.graph.add_vertex(goal)
+            v.connect(v_nearest)
+            return True
+        return False
+
 
     def double_trees(self, start, goal,k):
         """Use two trees, one starting from start one from goal"""
@@ -390,7 +445,7 @@ class RRG(GraphPlanner):
     def stopping_configuration(self,v,q, step = 0.1):
         '''return closest point close to boundary of obstacle '''
         q= q.coord
-        v=v.coord
+        v= v.coord
         while self.workspace.point_is_in_collision(q):
             q = q + (q - v) * step / np.linalg.norm(q - v)
         return UVertex(coord=q)
@@ -493,8 +548,8 @@ def main():
 
     # use an RRT planner
     planner = RRG(workspace, start, goal)
-    planner.add_vertices(n=100, connect_multiple_vertices=False)
-
+    #planner.add_vertices(n=100, connect_multiple_vertices=False)
+    path = planner.RRT(start,goal)
     # alternative: use a grid-based planner (only practical for small dimensions)
     # planner = Grid(workspace, 0.5)
 
@@ -503,7 +558,7 @@ def main():
     # planner.add_vertices(n=100)
 
     #path = planner.query(start, goal)
-    T1,T2 = planner.double_trees(start,goal,10000)
+    #T1,T2 = planner.double_trees(start,goal,10000)
     print("preprocessing time:", planner.preprocessing_time)
     print("query time:", planner.query_time)
     # plot the results
@@ -513,9 +568,9 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    #path.draw(ax,rgb=(0,1,0))
-    T1.draw(ax,rgb=(1,0,0))
-    T2.draw(ax,rgb=(0,1,0))
+    path.draw(ax,rgb=(0,1,0))
+    # T1.draw(ax,rgb=(1,0,0))
+    # T2.draw(ax,rgb=(0,1,0))
 
     plt.show()
     # if path is None:
