@@ -297,23 +297,23 @@ class RRG(GraphPlanner):
                 continue
 
             v = self.graph.add_vertex(q)
-            v.connect(v_nearest)
+            # v.connect(v_nearest)
 
-            # find and add additional nearby vertices
-            if connect_multiple_vertices:
-                vs_near = self.neighbours_within_dist(v, near_dist)
-                for vo in vs_near:
-                    # don't make duplicate edges
-                    if vo.isneighbour(v):
-                        continue
+            # # find and add additional nearby vertices
+            # if connect_multiple_vertices:
+            #     vs_near = self.neighbours_within_dist(v, near_dist)
+            #     for vo in vs_near:
+            #         # don't make duplicate edges
+            #         if vo.isneighbour(v):
+            #             continue
 
-                    if v.distance(vo.coord) < min_edge_len:
-                        continue
+            #         if v.distance(vo.coord) < min_edge_len:
+            #             continue
 
-                    # avoid collisions
-                    if self.workspace.edge_is_in_collision(vo.coord, v.coord):
-                        continue
-                    vo.connect(v)
+            #         # avoid collisions
+            #         if self.workspace.edge_is_in_collision(vo.coord, v.coord):
+            #             continue
+            #         vo.connect(v)
         self.preprocessing_time = time.time()-start_time
 
     def double_trees(self, start, goal,k):
@@ -332,7 +332,7 @@ class RRG(GraphPlanner):
             # self.draw(ax)
             # ax.plot(start[0], start[1], "o", color="g")
             # ax.plot(goal[0], goal[1], "o", color="r")
-            # #path.draw(ax,rgb=(0,1,0))
+            # path.draw(ax,rgb=(0,1,0))
             # ta.draw(ax,rgb=(1,0,0))
             # tb.draw(ax,rgb=(0,1,0))
 
@@ -356,7 +356,7 @@ class RRG(GraphPlanner):
             if self.touch(ta,tb):
                     self.query_time = time.time()-start_time
                     return (ta,tb)
-            if len([i for i in ta.graph])-len([i for i in tb.graph])>0:
+            if len([i for i in ta.graph])-len([i for i in tb.graph])>10:
                     ta,tb = tb,ta
         self.query_time = time.time()-start_time
         return (None,None)
@@ -392,7 +392,7 @@ class RRG(GraphPlanner):
         q= q.coord
         v=v.coord
         while self.workspace.point_is_in_collision(q):
-            q = v + (q - v) * step / np.linalg.norm(q - v)
+            q = q + (q - v) * step / np.linalg.norm(q - v)
         return UVertex(coord=q)
     def touch(self,ta,tb):
         vertices_coord_ta = [(i.coord[0],i.coord[1]) for i in ta.graph]
