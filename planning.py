@@ -96,24 +96,27 @@ class Workspace:
             if self.point_is_in_collision(point):
                 return True
         return False
-
-    def sample(self, n=1, max_tries_factor=5):
+    def sample(self,graph ,n=1,step = 0.1):
         """Sample n points from the workspace that is collision-free.
 
         Will try generating up to max_tries_factor * n points in total, after
         which the samples are returned even if there are not n of them.
         """
-        samples = []
-        num_tries = 0
-        while len(samples) < n and num_tries < max_tries_factor * n:
+        samples=[]
+        for _ in range(n):
             # sample the entire workspace uniformly
             xy = (np.random.random(2) - 0.5) * [self.width, self.height]
 
             # add this point if it is collision-free
             if not self.point_is_in_collision(xy):
                 samples.append(xy)
+            else:
+                v,_ = graph.closest_vertex(xy)
+                v = v.coord
+                while self.point_is_in_collision(xy):
+                    xy = xy + (xy - v) * step / np.linalg.norm(xy - v)
+                samples.append(xy)
 
-            num_tries += 1
 
         if n == 1:
             return samples[0]
@@ -240,7 +243,7 @@ class PRM(GraphPlanner):
         start_time = time.time()
         while self.graph.n < new_size:
             # generate a new (collision-free) point
-            point = self.workspace.sample()
+            point = self.workspace.sample(self)
             v = self.graph.add_vertex(point)
 
             # add edges between the new vertex and k nearest neighbours if the
@@ -335,7 +338,7 @@ class RRG(GraphPlanner):
             # self.draw(ax,rgb=(0,1,0))
 
             # plt.show()
-            q = self.workspace.sample()
+            q = self.workspace.sample(self)
 
             v_nearest, dist = self.closest_vertex(q)
             if dist < min_edge_len:
@@ -374,12 +377,10 @@ class RRG(GraphPlanner):
     def double_trees(self, start, goal,k):
         """Use two trees, one starting from start one from goal"""
         start_time = time.time()
-        vs, _ = self.graph.closest(start)
-        vg, _ = self.graph.closest(goal)
         ta = GraphPlanner(UGraph())
         tb = GraphPlanner(UGraph())
-        ta.graph.add_vertex(vs)
-        tb.graph.add_vertex(vg)
+        v_ta = ta.graph.add_vertex(start)
+        v_tb = tb.graph.add_vertex(goal)
         for i in range(k):
             # plt.figure()
             # ax = plt.gca()
@@ -392,7 +393,7 @@ class RRG(GraphPlanner):
             # tb.draw(ax,rgb=(0,1,0))
 
             # plt.show()
-            qn,v_ta,_ = self.closest_vertex_trees(ta)
+            qn = self.workspace.sample(self)
             qs = self.stopping_configuration(v_ta,qn)
             if (qn.coord[0],qn.coord[1]) != (qs.coord[0],qs.coord[1]) and not self.workspace.edge_is_in_collision(v_ta.coord,qn.coord):
                 ta.graph.add_vertex(qs)
@@ -442,13 +443,6 @@ class RRG(GraphPlanner):
                     v_closest_T = vertex
         return v_closest, v_closest_T, d
 
-    def stopping_configuration(self,v,q, step = 0.1):
-        '''return closest point close to boundary of obstacle '''
-        q= q.coord
-        v= v.coord
-        while self.workspace.point_is_in_collision(q):
-            q = q + (q - v) * step / np.linalg.norm(q - v)
-        return UVertex(coord=q)
     def touch(self,ta,tb):
         vertices_coord_ta = [(i.coord[0],i.coord[1]) for i in ta.graph]
         vertices_coord_tb = [(i.coord[0],i.coord[1]) for i in tb.graph]
