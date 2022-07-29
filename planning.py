@@ -49,6 +49,8 @@ class Circle:
         return np.linalg.norm(self.xy - xy) <= self.radius
 
 
+
+
 class Workspace:
     """2D workspace for the robot."""
 
@@ -336,6 +338,9 @@ class RRG(GraphPlanner):
         while self.workspace.point_is_in_collision(q):
             q = q + (q - q_nearest) / np.linalg.norm(q - q_nearest)
         return q
+    
+
+
 
 
 class RRT(RRG):
@@ -355,30 +360,37 @@ class RRT(RRG):
         while self.graph.n < new_size:
             # TODO maybe change min and max edge len based on how many points have been taken?
             # add radius with minimum path
-            q = self.workspace.sample()
-
-            v_nearest, dist = self.closest_vertex(q)
-            if dist < min_edge_len:
-                continue
-            q_nearest = v_nearest.coord
-
-            # move toward q as much as possible
-            if dist > max_edge_len:
-                q = q_nearest + (q - q_nearest) * max_edge_len / dist
-            if self.workspace.point_is_in_collision(q):
-                q = self.closest_point_not_in_collision(q, q_nearest)
-            # don't add if edge is in collision
-            if self.workspace.edge_is_in_collision(q_nearest, q):
-                continue
-
-            v = self.graph.add_vertex(q)
-            v.connect(v_nearest)
+            self.expand_graph(min_edge_len,max_edge_len)
             if self.end_condition(goal):
                 self.preprocessing_time = 0
+                self.goal_node = n
                 self.query_time = time.time() - start_time
                 break
         self.preprocessing_time = 0
         self.query_time = time.time() - start_time
+
+    def expand_graph(self,
+        min_edge_len,
+        max_edge_len):
+        """Add a vertex to the RRT graph"""
+        q = self.workspace.sample()
+
+        v_nearest, dist = self.closest_vertex(q)
+        if dist < min_edge_len:
+            return
+        q_nearest = v_nearest.coord
+
+        # move toward q as much as possible
+        if dist > max_edge_len:
+            q = q_nearest + (q - q_nearest) * max_edge_len / dist
+        if self.workspace.point_is_in_collision(q):
+            q = self.closest_point_not_in_collision(q, q_nearest)
+        # don't add if edge is in collision
+        if self.workspace.edge_is_in_collision(q_nearest, q):
+            return
+
+        v = self.graph.add_vertex(q)
+        v.connect(v_nearest)
 
     def end_condition(self, goal, goal_dist=0.5):
         v_nearest, dist = self.closest_vertex(goal)
@@ -391,7 +403,8 @@ class RRT(RRG):
         return False
 
 
-class Double_trees(RRG):
+
+class Bidirectional_RRT(RRG):
     def __init__(self, workspace, q0):
         super().__init__(workspace, q0)
         self.ta = None
@@ -405,48 +418,10 @@ class Double_trees(RRG):
         v_ta = ta.graph.add_vertex(start)
         v_tb = tb.graph.add_vertex(goal)
         for _ in range(k):
-            # plt.figure()
-            # ax = plt.gca()
-            # self.workspace.draw(ax)
-            # self.draw(ax)
-            # ax.plot(start[0], start[1], "o", color="g")
-            # ax.plot(goal[0], goal[1], "o", color="r")
-            # ta.draw(ax,rgb=(1,0,0))
-            # tb.draw(ax,rgb=(0,1,0))
-
-            # plt.show()
-            qn = self.workspace.sample()
-            v_nearest, dist = ta.closest_vertex(qn)
-            if dist < min_edge_len:
-                continue
-            q_nearest = v_nearest.coord
-
-            if dist > max_edge_len:
-                qn = q_nearest + (qn - q_nearest) * max_edge_len / dist
-
-            if ta.workspace.edge_is_in_collision(q_nearest, qn):
-                continue
-            if self.workspace.point_is_in_collision(q):
-                q = self.closest_point_not_in_collision(q, q_nearest)
-            vn = ta.graph.add_vertex(qn)
-            ta.graph.add_edge(vn, v_nearest)
+            ta.expand_graph(min_edge_len,max_edge_len)
 
             # operate on second tree
-            qn_prime = self.workspace.sample()
-            v_nearest, dist = tb.closest_vertex(qn_prime)
-            if dist < min_edge_len:
-                continue
-            q_nearest = v_nearest.coord
-
-            if dist > max_edge_len:
-                qn_prime = q_nearest + (qn_prime - q_nearest) * max_edge_len / dist
-
-            if tb.workspace.edge_is_in_collision(q_nearest, qn_prime):
-                continue
-            if self.workspace.point_is_in_collision(q):
-                q = self.closest_point_not_in_collision(q, q_nearest)
-            vn_prime = tb.graph.add_vertex(qn_prime)
-            tb.graph.add_edge(vn_prime, v_nearest)
+            tb.expand_graph(min_edge_len,max_edge_len)
 
             if self.touch(ta, tb):
                 self.preprocessing_time = 0
@@ -478,7 +453,7 @@ class Double_trees(RRG):
             self.tb.draw(ax, rgb=(0, 1, 0))
 
 
-class RRT_further_reachin(RRT):
+class Unbounded_RRT(RRT):
     """RRT with no minimum distance"""
 
     def __init__(self, workspace, q0):
@@ -491,39 +466,14 @@ class RRT_further_reachin(RRT):
         n=1000,
         min_edge_len=0.5,
         max_edge_len=1,
+        niu = 0.8
     ):
         new_size = self.graph.n + n
         start_time = time.time()
         while self.graph.n < new_size:
             # TODO maybe change min and max edge len based on how many points have been taken?
             # add radius with minimum path
-            q = self.workspace.sample()
-
-            v_nearest, dist = self.closest_vertex(q)
-            if dist < min_edge_len:
-                continue
-            q_nearest = v_nearest.coord
-            #print(self.graph.predecessors(v_nearest))
-            if self.workspace.point_is_in_collision(q):
-                q = self.closest_point_not_in_collision(q, q_nearest)
-            # don't add if edge is in collision
-            if self.workspace.edge_is_in_collision(q_nearest, q):
-                continue
-
-            # split distance into multiple edges
-            if dist > max_edge_len:
-                q_closest = v_nearest.coord
-                vertices = round(dist / max_edge_len)
-                for i in range(vertices - 1):
-                    cur_vertex = q_closest + (i + 1) * (q - q_closest) / np.linalg.norm(
-                        q - q_closest
-                    )
-                    cur_vertex = self.graph.add_vertex(cur_vertex)
-                    cur_vertex.connect(v_nearest)
-                    v_nearest = cur_vertex
-
-            v = self.graph.add_vertex(q)
-            v.connect(v_nearest)
+            self.expand_graph(min_edge_len,max_edge_len,niu)
             if self.end_condition(goal):
                 self.preprocessing_time = 0
                 self.query_time = time.time() - start_time
@@ -531,6 +481,69 @@ class RRT_further_reachin(RRT):
         self.preprocessing_time = 0
         self.query_time = time.time() - start_time
 
+    def expand_graph(self, min_edge_len, max_edge_len,niu):
+        """Add a vertex to the RRT graph"""
+        q = self.workspace.sample()
+        v_nearest, dist = self.closest_vertex(q)
+        q_nearest = v_nearest.coord
+
+        #steer the point closer to the tree
+        q = q + (q_nearest - q) * niu / dist
+        dist = dist - niu
+        if dist < min_edge_len:
+            return
+        
+        if self.workspace.point_is_in_collision(q):
+            q = self.closest_point_not_in_collision(q, q_nearest)
+        # don't add if edge is in collision
+        if self.workspace.edge_is_in_collision(q_nearest, q):
+            return
+
+        # split distance into multiple edges
+        if dist > max_edge_len:
+            q_closest = v_nearest.coord
+            vertices = round(dist / max_edge_len)
+            for i in range(vertices - 1):
+                cur_vertex = q_closest + (i + 1) * (q - q_closest) / np.linalg.norm(
+                    q - q_closest
+                )
+                cur_vertex = self.graph.add_vertex(cur_vertex)
+                cur_vertex.connect(v_nearest)
+                v_nearest = cur_vertex
+
+        v = self.graph.add_vertex(q)
+        v.connect(v_nearest)
+
+class Unbounded_bidirectional_RRT(Bidirectional_RRT):
+    def __init__(self, workspace, q0):
+        super().__init__(workspace, q0)
+    
+    def query(self, start, goal, k=1000, min_edge_len=0.5, max_edge_len=1,niu=0.8):
+        """Use two trees, one starting from start one from goal, to explore the space"""
+        start_time = time.time()
+        ta = Unbounded_RRT(self.workspace, start)
+        tb = Unbounded_RRT(self.workspace, goal)
+        v_ta = ta.graph.add_vertex(start)
+        v_tb = tb.graph.add_vertex(goal)
+        for _ in range(k):
+            ta.expand_graph(min_edge_len,max_edge_len,niu)
+
+            # operate on second tree
+            tb.expand_graph(min_edge_len,max_edge_len,niu)
+
+            if self.touch(ta, tb):
+                self.preprocessing_time = 0
+                self.query_time = time.time() - start_time
+                self.ta = ta
+                self.tb = tb
+                return
+            if ta.graph.n - tb.graph.n > 10:
+                ta, tb = tb, ta
+        self.preprocessing_time = 0
+        self.query_time = time.time() - start_time
+        self.ta = None
+        self.tb = None
+        
 
 def grid_neighbour_indices(i, j, nx, ny):
     """Get the index of the current vertex and neighbouring vertices in a 2D
@@ -624,15 +637,17 @@ def main():
     # planner = RRG(workspace, start)
 
     # RRT
-    # planner = RRT(workspace,start)
-    # planner.query(start, goal)
+    #planner = RRT(workspace,start)
 
     # double trees
-    # planner = Double_trees(workspace,start)
-    # planner.query(start,goal)
+    #planner = Bidirectional_RRT(workspace,start)
 
     # RRT with no max distance
-    planner = RRT_further_reachin(workspace, start)
+    #planner = Unbounded_RRT(workspace, start)
+
+    #Unbounded bidirectional RRT
+    planner = Unbounded_bidirectional_RRT(workspace, start)
+
     planner.query(start, goal)
 
     # planner.add_vertices(n=100, connect_multiple_vertices=False)
