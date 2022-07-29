@@ -49,8 +49,6 @@ class Circle:
         return np.linalg.norm(self.xy - xy) <= self.radius
 
 
-
-
 class Workspace:
     """2D workspace for the robot."""
 
@@ -338,9 +336,6 @@ class RRG(GraphPlanner):
         while self.workspace.point_is_in_collision(q):
             q = q + (q - q_nearest) / np.linalg.norm(q - q_nearest)
         return q
-    
-
-
 
 
 class RRT(RRG):
@@ -360,7 +355,7 @@ class RRT(RRG):
         while self.graph.n < new_size:
             # TODO maybe change min and max edge len based on how many points have been taken?
             # add radius with minimum path
-            self.expand_graph(min_edge_len,max_edge_len)
+            self.expand_graph(min_edge_len, max_edge_len)
             if self.end_condition(goal):
                 self.preprocessing_time = 0
                 self.goal_node = n
@@ -369,9 +364,7 @@ class RRT(RRG):
         self.preprocessing_time = 0
         self.query_time = time.time() - start_time
 
-    def expand_graph(self,
-        min_edge_len,
-        max_edge_len):
+    def expand_graph(self, min_edge_len, max_edge_len):
         """Add a vertex to the RRT graph"""
         q = self.workspace.sample()
 
@@ -403,7 +396,6 @@ class RRT(RRG):
         return False
 
 
-
 class Bidirectional_RRT(RRG):
     def __init__(self, workspace, q0):
         super().__init__(workspace, q0)
@@ -418,10 +410,10 @@ class Bidirectional_RRT(RRG):
         v_ta = ta.graph.add_vertex(start)
         v_tb = tb.graph.add_vertex(goal)
         for _ in range(k):
-            ta.expand_graph(min_edge_len,max_edge_len)
+            ta.expand_graph(min_edge_len, max_edge_len)
 
             # operate on second tree
-            tb.expand_graph(min_edge_len,max_edge_len)
+            tb.expand_graph(min_edge_len, max_edge_len)
 
             if self.touch(ta, tb):
                 self.preprocessing_time = 0
@@ -459,21 +451,13 @@ class Unbounded_RRT(RRT):
     def __init__(self, workspace, q0):
         super().__init__(workspace, q0)
 
-    def query(
-        self,
-        start,
-        goal,
-        n=1000,
-        min_edge_len=0.5,
-        max_edge_len=1,
-        niu = 0.8
-    ):
+    def query(self, start, goal, n=1000, min_edge_len=0.5, max_edge_len=1, niu=0.8):
         new_size = self.graph.n + n
         start_time = time.time()
         while self.graph.n < new_size:
             # TODO maybe change min and max edge len based on how many points have been taken?
             # add radius with minimum path
-            self.expand_graph(min_edge_len,max_edge_len,niu)
+            self.expand_graph(min_edge_len, max_edge_len, niu)
             if self.end_condition(goal):
                 self.preprocessing_time = 0
                 self.query_time = time.time() - start_time
@@ -481,18 +465,18 @@ class Unbounded_RRT(RRT):
         self.preprocessing_time = 0
         self.query_time = time.time() - start_time
 
-    def expand_graph(self, min_edge_len, max_edge_len,niu):
+    def expand_graph(self, min_edge_len, max_edge_len, niu):
         """Add a vertex to the RRT graph"""
         q = self.workspace.sample()
         v_nearest, dist = self.closest_vertex(q)
         q_nearest = v_nearest.coord
 
-        #steer the point closer to the tree
+        # steer the point closer to the tree
         q = q + (q_nearest - q) * niu / dist
         dist = dist - niu
         if dist < min_edge_len:
             return
-        
+
         if self.workspace.point_is_in_collision(q):
             q = self.closest_point_not_in_collision(q, q_nearest)
         # don't add if edge is in collision
@@ -514,11 +498,12 @@ class Unbounded_RRT(RRT):
         v = self.graph.add_vertex(q)
         v.connect(v_nearest)
 
+
 class Unbounded_bidirectional_RRT(Bidirectional_RRT):
     def __init__(self, workspace, q0):
         super().__init__(workspace, q0)
-    
-    def query(self, start, goal, k=1000, min_edge_len=0.5, max_edge_len=1,niu=0.8):
+
+    def query(self, start, goal, k=1000, min_edge_len=0.5, max_edge_len=1, niu=0.8):
         """Use two trees, one starting from start one from goal, to explore the space"""
         start_time = time.time()
         ta = Unbounded_RRT(self.workspace, start)
@@ -526,10 +511,10 @@ class Unbounded_bidirectional_RRT(Bidirectional_RRT):
         v_ta = ta.graph.add_vertex(start)
         v_tb = tb.graph.add_vertex(goal)
         for _ in range(k):
-            ta.expand_graph(min_edge_len,max_edge_len,niu)
+            ta.expand_graph(min_edge_len, max_edge_len, niu)
 
             # operate on second tree
-            tb.expand_graph(min_edge_len,max_edge_len,niu)
+            tb.expand_graph(min_edge_len, max_edge_len, niu)
 
             if self.touch(ta, tb):
                 self.preprocessing_time = 0
@@ -543,7 +528,7 @@ class Unbounded_bidirectional_RRT(Bidirectional_RRT):
         self.query_time = time.time() - start_time
         self.ta = None
         self.tb = None
-        
+
 
 def grid_neighbour_indices(i, j, nx, ny):
     """Get the index of the current vertex and neighbouring vertices in a 2D
@@ -637,15 +622,15 @@ def main():
     # planner = RRG(workspace, start)
 
     # RRT
-    #planner = RRT(workspace,start)
+    # planner = RRT(workspace,start)
 
     # double trees
-    #planner = Bidirectional_RRT(workspace,start)
+    # planner = Bidirectional_RRT(workspace,start)
 
     # RRT with no max distance
-    #planner = Unbounded_RRT(workspace, start)
+    # planner = Unbounded_RRT(workspace, start)
 
-    #Unbounded bidirectional RRT
+    # Unbounded bidirectional RRT
     planner = Unbounded_bidirectional_RRT(workspace, start)
 
     planner.query(start, goal)
