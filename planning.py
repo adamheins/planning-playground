@@ -274,7 +274,7 @@ class RRG(GraphPlanner):
     def __init__(self, workspace, q0):
         super().__init__(UGraph())
         self.workspace = workspace
-        self.graph.add_vertex(q0)
+        self.v_start = self.graph.add_vertex(q0)
 
         # TODO include this properly, bias toward it, etc.
         # self.goal = self.graph.add_vertex(qf)
@@ -341,6 +341,7 @@ class RRG(GraphPlanner):
 class RRT(RRG):
     def __init__(self, workspace, q0):
         super().__init__(workspace, q0)
+        self.v_start.parent = None
 
     def query(
         self,
@@ -358,7 +359,6 @@ class RRT(RRG):
             self.expand_graph(min_edge_len, max_edge_len)
             if self.end_condition(goal):
                 self.preprocessing_time = 0
-                self.goal_node = n
                 self.query_time = time.time() - start_time
                 break
         self.preprocessing_time = 0
@@ -384,6 +384,7 @@ class RRT(RRG):
 
         v = self.graph.add_vertex(q)
         v.connect(v_nearest)
+        v.parent = v_nearest
 
     def end_condition(self, goal, goal_dist=0.5):
         v_nearest, dist = self.closest_vertex(goal)
@@ -392,8 +393,25 @@ class RRT(RRG):
         ):
             v = self.graph.add_vertex(goal)
             v.connect(v_nearest)
+            v.parent = v_nearest
+            self.v_goal = v
             return True
         return False
+
+    def draw(self, ax, vertices=True, edges= True, rgb=(1,0.5,0)):
+        super().draw(ax, vertices=vertices, edges=edges, rgb=rgb)
+        self.find_path(ax)
+    
+    def find_path(self, ax):
+        t = GraphPlanner(UGraph())
+        t.graph.add_vertex(self.v_goal)
+        current = self.v_goal
+        while current.parent != None:
+            new_node = current.parent
+            t.graph.add_vertex(new_node)
+            t.graph.add_edge(current,new_node)
+            current = current.parent
+        t.draw(ax,rgb=(0.5,0,1))
 
 
 class Bidirectional_RRT(RRG):
@@ -622,7 +640,7 @@ def main():
     # planner = RRG(workspace, start)
 
     # RRT
-    # planner = RRT(workspace,start)
+    planner = RRT(workspace,start)
 
     # double trees
     # planner = Bidirectional_RRT(workspace,start)
@@ -631,7 +649,7 @@ def main():
     # planner = Unbounded_RRT(workspace, start)
 
     # Unbounded bidirectional RRT
-    planner = Unbounded_bidirectional_RRT(workspace, start)
+    #planner = Unbounded_bidirectional_RRT(workspace, start)
 
     planner.query(start, goal)
 
