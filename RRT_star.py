@@ -52,7 +52,9 @@ class RRT_star(RRT):
         q = q_new
         if dist < min_edge_len:
             return
+        self.new_point_routine(q,v_nearest)
 
+    def new_point_routine(self, q, v_nearest):
         n =self.graph.n
         #print(2 * math.sqrt((math.log(n) / n)))
         #rn = min(100/n, 5) # change rn depending on how many nodes there are, look at formula on RTT star paper
@@ -87,6 +89,21 @@ class RRT_star(RRT):
                 edge = vertex.connect(v)
                 vertex.edge = edge
                 self.cost_dic[tuple(point)] = cost
+        return v
+
+    def end_condition(self, goal, goal_dist=0.5):
+        v_nearest, dist = self.closest_vertex(goal)
+        if tuple(goal) in [tuple(i.coord) for i in self.graph]:
+            #print("yes")
+            return True 
+        elif dist <= goal_dist and not self.workspace.edge_is_in_collision(
+            v_nearest.coord, goal
+        ):
+            print("yes!")
+            v = self.new_point_routine(goal,v_nearest)
+            self.v_goal = v
+            return True
+        return False
 
 
     def query(
@@ -100,21 +117,11 @@ class RRT_star(RRT):
     ):
         new_size = self.graph.n + n
         start_time = time.time()
-        solution = False
         for i in range(n):
             # TODO maybe change min and max edge len based on how many points have been taken?
             # add radius with minimum path
-            if i%30 == 0 and not solution:
-                plt.figure()
-                ax = plt.gca()
-                self.workspace.draw(ax)
-                self.draw(ax)
-                ax.plot(start[0], start[1], "o", color="g")
-                ax.plot(goal[0], goal[1], "o", color="r")
-                plt.show()
             self.expand_graph(min_edge_len, max_edge_len,niu)
             if self.end_condition(goal,goal_dist=1) and i%30 == 0:
-                solution = True
                 plt.figure()
                 ax = plt.gca()
                 self.workspace.draw(ax)
@@ -124,6 +131,16 @@ class RRT_star(RRT):
                 path = self.find_path()
                 path.draw(ax)
                 plt.show()
+            elif i%30 == 0:
+                plt.figure()
+                ax = plt.gca()
+                self.workspace.draw(ax)
+                self.draw(ax)
+                ax.plot(start[0], start[1], "o", color="g")
+                ax.plot(goal[0], goal[1], "o", color="r")
+                plt.show()
+            
+            
                 
                 # self.preprocessing_time = 0
                 # self.query_time = time.time() - start_time
