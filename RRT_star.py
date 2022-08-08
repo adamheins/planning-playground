@@ -132,6 +132,7 @@ class RRT_star(RRT):
         self.query_time = time.time() - start_time
 
 
+
 def main():
     # create the workspace with some obstacles
     workspace = Workspace(10, 10)
