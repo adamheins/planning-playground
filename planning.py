@@ -400,9 +400,9 @@ class RRT(RRG):
 
     def draw(self, ax, vertices=True, edges= True, rgb=(1,0.5,0)):
         super().draw(ax, vertices=vertices, edges=edges, rgb=rgb)
-        self.find_path(ax)
+        
     
-    def find_path(self, ax):
+    def find_path(self):
         t = GraphPlanner(UGraph())
         t.graph.add_vertex(self.v_goal)
         current = self.v_goal
@@ -411,20 +411,21 @@ class RRT(RRG):
             t.graph.add_vertex(new_node)
             t.graph.add_edge(current,new_node)
             current = current.parent
-        t.draw(ax,rgb=(0.5,0,1))
+        return t
 
 
 class Bidirectional_RRT(RRG):
-    def __init__(self, workspace, q0):
+    def __init__(self, workspace, q0, rrt_cls):
         super().__init__(workspace, q0)
+        self.rrt_cls = rrt_cls
         self.ta = None
         self.tb = None
 
     def query(self, start, goal, k=1000, min_edge_len=0.5, max_edge_len=1):
         """Use two trees, one starting from start one from goal, to explore the space"""
         start_time = time.time()
-        ta = RRT(self.workspace, start)
-        tb = RRT(self.workspace, goal)
+        ta = self.rrt_cls(self.workspace, start)
+        tb = self.rrt_cls(self.workspace, goal)
         v_ta = ta.graph.add_vertex(start)
         v_tb = tb.graph.add_vertex(goal)
         for _ in range(k):
@@ -452,15 +453,31 @@ class Bidirectional_RRT(RRG):
         if dist < goal_dist:
             v.connect(v_tb)
             ta.graph.add_edge(v, v_tb)
+            ta.v_goal = v
+            tb.v_goal = v_tb
             return True
         return False
+
 
     def draw(self, ax):
         if self.ta is None:
             print("No solution")
         else:
-            self.ta.draw(ax, rgb=(1, 0, 0))
-            self.tb.draw(ax, rgb=(0, 1, 0))
+            self.ta.draw(ax, rgb=(0, 1, 1))
+            self.tb.draw(ax, rgb=(1, 1, 0))
+
+    def find_path(self):
+        path_ta = self.ta.find_path()
+        path_tb = self.tb.find_path()
+        v_ta,v_tb,_ = path_ta.closest_vertex_graph(path_tb)
+        current = v_tb
+        previous = v_ta
+        while previous.parent!= None:
+            new = path_ta.graph.add_vertex(current.coord)
+            new.connect(previous)
+            previous = current
+            current = current.parent
+        return path_ta
 
 
 class Unbounded_RRT(RRT):
@@ -483,7 +500,7 @@ class Unbounded_RRT(RRT):
         self.preprocessing_time = 0
         self.query_time = time.time() - start_time
 
-    def expand_graph(self, min_edge_len, max_edge_len, niu):
+    def expand_graph(self, min_edge_len, max_edge_len, niu=0.8):
         """Add a vertex to the RRT graph"""
         q = self.workspace.sample()
         v_nearest, dist = self.closest_vertex(q)
@@ -511,10 +528,14 @@ class Unbounded_RRT(RRT):
                 )
                 cur_vertex = self.graph.add_vertex(cur_vertex)
                 cur_vertex.connect(v_nearest)
+                cur_vertex.parent = v_nearest
                 v_nearest = cur_vertex
 
         v = self.graph.add_vertex(q)
         v.connect(v_nearest)
+        v.parent = v_nearest
+    
+    
 
 
 class Unbounded_bidirectional_RRT(Bidirectional_RRT):
@@ -640,19 +661,19 @@ def main():
     # planner = RRG(workspace, start)
 
     # RRT
-    planner = RRT(workspace,start)
+    #planner = RRT(workspace,start)
 
     # double trees
-    # planner = Bidirectional_RRT(workspace,start)
+    planner = Bidirectional_RRT(workspace,start,RRT)
 
     # RRT with no max distance
     # planner = Unbounded_RRT(workspace, start)
 
     # Unbounded bidirectional RRT
-    #planner = Unbounded_bidirectional_RRT(workspace, start)
+    #planner = Bidirectional_RRT(workspace, start,Unbounded_RRT)
 
-    planner.query(start, goal)
-
+    planner.query(start, goal)  
+    path = planner.find_path()
     # planner.add_vertices(n=100, connect_multiple_vertices=False)
     # path = planner.RRT(start,goal)
     # alternative: use a grid-based planner (only practical for small dimensions)
@@ -671,15 +692,9 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    # path.draw(ax,rgb=(0,1,0))
-    # T1.draw(ax,rgb=(1,0,0))
-    # T2.draw(ax,rgb=(0,1,0))
-
+    path.draw(ax,rgb=(0,0,0))
     plt.show()
-    # if path is None:
-    #     print("Could not find a path from start to goal!")
-    # else:
-    #     ax.plot(path[:, 0], path[:, 1], color="r")
+
 
 
 if __name__ == "__main__":
