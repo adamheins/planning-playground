@@ -64,7 +64,6 @@ class RRT_star(RRT):
         neighborhood = self.near_vertices(q,rn)
         if len(neighborhood) == 0:
             return
-        v_min = v_nearest
         cost = self.cost(v_nearest.coord) + self.connection(v_nearest.coord, q)
         for vertex in neighborhood:
             point = vertex.coord
@@ -72,13 +71,13 @@ class RRT_star(RRT):
                 c_prime = self.cost(point) + self.connection(point, q)
                 if cost>c_prime:
                     cost=c_prime
-                    v_min = vertex
+                    v_nearest = vertex
         self.cost_dic[tuple(q)] = cost
         v = self.graph.add_vertex(q)
-        edge = v.connect(v_min)
-        v.parent = v_min
+        edge = v.connect(v_nearest)
+        v.parent = v_nearest
         v.edge = edge
-        q_min = v_min.coord
+        q_min = v_nearest.coord
 
         for vertex in neighborhood:
             point = vertex.coord
