@@ -1,9 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
-from pgraph import UGraph, DGraph
-
-import IPython
+from pgraph import UGraph, DGraph, UVertex
+import time
 
 
 class Rectangle:
@@ -86,6 +85,8 @@ class Workspace:
 
         The edge is discretized in steps of length h."""
         d = np.linalg.norm(xy2 - xy1)
+        if d == 0:
+            return False
         r = (xy2 - xy1) / d
 
         steps = np.arange(0, d, h)
@@ -95,23 +96,25 @@ class Workspace:
                 return True
         return False
 
-    def sample(self, n=1, max_tries_factor=5):
+    def sample(self, n=1, accept_point_in_collision=True):
         """Sample n points from the workspace that is collision-free.
 
         Will try generating up to max_tries_factor * n points in total, after
         which the samples are returned even if there are not n of them.
         """
         samples = []
-        num_tries = 0
-        while len(samples) < n and num_tries < max_tries_factor * n:
+        for _ in range(n):
             # sample the entire workspace uniformly
             xy = (np.random.random(2) - 0.5) * [self.width, self.height]
-
+            collision = self.point_is_in_collision(xy)
             # add this point if it is collision-free
-            if not self.point_is_in_collision(xy):
+            if accept_point_in_collision or not collision:
                 samples.append(xy)
-
-            num_tries += 1
+            else:
+                # TODO write later
+                # Idea: while loop that moves point
+                # or try generate n* max_tries_factor
+                continue
 
         if n == 1:
             return samples[0]
@@ -120,6 +123,7 @@ class Workspace:
 
 class GraphPlanner:
     """Base class for all graph-based planners."""
+
     def __init__(self, graph):
         # graph may be directed or undirected, as selected by the subclass
         self.graph = graph
@@ -192,16 +196,43 @@ class GraphPlanner:
 
         return v_closest, min_dist
 
+    def closest_vertex_graph(self, T):
+        """Find the closest vertex belonging to graph to a another given graph T"""
+        vertices_graph_T = T.graph
+        vertices_graph = self.graph
+        min_dist = vertices_graph[0].distance(vertices_graph_T[0].coord)
+        v_closest = vertices_graph[0]
+        v_closest_T = vertices_graph_T[0]
+        for vertex in vertices_graph_T:
+            for v in vertices_graph:
+                d = vertex.distance(v.coord)
+
+                if d < min_dist:
+                    min_dist = d
+                    v_closest = v
+                    v_closest_T = vertex
+        return v_closest, v_closest_T, min_dist
+
     def query(self, start, goal):
         """Get the shortest path between the start and goal points, if one exists."""
+        start_time = time.time()
         vs, _ = self.graph.closest(start)
         vg, _ = self.graph.closest(goal)
         path = self.graph.path_Astar(vs, vg)
         if path is None:
             return None
+
+        self.query_time = time.time() - start_time
         idx = path[0]
         points = np.array([self.graph[i].coord for i in idx])
-        return np.vstack((start, points, goal))
+        points = np.vstack((start, points, goal))
+        t = GraphPlanner(UGraph())
+        points = [UVertex(name=str(i), coord=i) for i in points]
+        t.graph.add_vertex(points[0])
+        for i in range(1, len(points)):
+            t.graph.add_vertex(points[i])
+            t.graph.add_edge(points[i - 1], points[i])
+        return t
 
 
 class PRM(GraphPlanner):
@@ -218,7 +249,7 @@ class PRM(GraphPlanner):
         between thm are collision-free.
         """
         new_size = self.graph.n + n
-
+        start_time = time.time()
         while self.graph.n < new_size:
             # generate a new (collision-free) point
             point = self.workspace.sample()
@@ -230,6 +261,7 @@ class PRM(GraphPlanner):
                 if self.workspace.edge_is_in_collision(v.coord, vo.coord):
                     continue
                 v.connect(vo)
+        self.preprocessing_time = time.time() - start_time
 
 
 class RRG(GraphPlanner):
@@ -239,10 +271,10 @@ class RRG(GraphPlanner):
     added with connect_multiple_vertices=False.
     """
 
-    def __init__(self, workspace, q0, qf):
+    def __init__(self, workspace, q0):
         super().__init__(UGraph())
         self.workspace = workspace
-        self.root = self.graph.add_vertex(q0)
+        self.v_start = self.graph.add_vertex(q0)
 
         # TODO include this properly, bias toward it, etc.
         # self.goal = self.graph.add_vertex(qf)
@@ -252,25 +284,28 @@ class RRG(GraphPlanner):
         n,
         min_edge_len=0.5,
         max_edge_len=1,
-        near_dist=1,
+        near_dist=1,  # neigbors distance
         connect_multiple_vertices=True,
     ):
         """Add n vertices to the RRG."""
         new_size = self.graph.n + n
-
+        start_time = time.time()
         while self.graph.n < new_size:
             # TODO we can actually try to connect as close as possible to a
             # vertex in collision
             q = self.workspace.sample()
 
             v_nearest, dist = self.closest_vertex(q)
+
             if dist < min_edge_len:
                 continue
             q_nearest = v_nearest.coord
-
             # move toward q as much as possible
             if dist > max_edge_len:
                 q = q_nearest + (q - q_nearest) * max_edge_len / dist
+
+            if self.workspace.point_is_in_collision(q):
+                q = self.closest_point_not_in_collision(q, q_nearest)
 
             # don't add if edge is in collision
             if self.workspace.edge_is_in_collision(q_nearest, q):
@@ -294,6 +329,206 @@ class RRG(GraphPlanner):
                     if self.workspace.edge_is_in_collision(vo.coord, v.coord):
                         continue
                     vo.connect(v)
+        self.preprocessing_time = time.time() - start_time
+
+    def closest_point_not_in_collision(self, q, q_nearest):
+        """return closest point that is not in collision with workspace"""
+        while self.workspace.point_is_in_collision(q):
+            q = q + (q - q_nearest) / np.linalg.norm(q - q_nearest)
+        return q
+
+
+class RRT(RRG):
+    def __init__(self, workspace, q0):
+        super().__init__(workspace, q0)
+        self.v_start.parent = None
+
+    def query(
+        self,
+        start,
+        goal,
+        n=1000,
+        min_edge_len=0.5,
+        max_edge_len=1,
+    ):
+        new_size = self.graph.n + n
+        start_time = time.time()
+        while self.graph.n < new_size:
+            # TODO maybe change min and max edge len based on how many points have been taken?
+            # add radius with minimum path
+            self.expand_graph(min_edge_len, max_edge_len)
+            if self.end_condition(goal):
+                self.preprocessing_time = 0
+                self.query_time = time.time() - start_time
+                break
+        self.preprocessing_time = 0
+        self.query_time = time.time() - start_time
+
+    def expand_graph(self, min_edge_len, max_edge_len):
+        """Add a vertex to the RRT graph"""
+        q = self.workspace.sample()
+
+        v_nearest, dist = self.closest_vertex(q)
+        # if dist < min_edge_len:
+        #     return
+        q_nearest = v_nearest.coord
+
+        # move toward q as much as possible
+        if dist > max_edge_len:
+            q = q_nearest + (q - q_nearest) * max_edge_len / dist
+        if self.workspace.point_is_in_collision(q):
+            q = self.closest_point_not_in_collision(q, q_nearest)
+        # don't add if edge is in collision
+        if self.workspace.edge_is_in_collision(q_nearest, q):
+            return
+
+        v = self.graph.add_vertex(q)
+        v.connect(v_nearest)
+        v.parent = v_nearest
+
+    def end_condition(self, goal, goal_dist=0.5):
+        v_nearest, dist = self.closest_vertex(goal)
+        if dist <= goal_dist and not self.workspace.edge_is_in_collision(
+            v_nearest.coord, goal
+        ):
+            v = self.graph.add_vertex(goal)
+            v.connect(v_nearest)
+            v.parent = v_nearest
+            self.v_goal = v
+            return True
+        return False
+
+    def find_path(self):
+        t = GraphPlanner(UGraph())
+        t.graph.add_vertex(self.v_goal)
+        current = self.v_goal
+        while current.parent != None:
+            new_node = current.parent
+            t.graph.add_vertex(new_node)
+            t.graph.add_edge(current, new_node)
+            current = current.parent
+        return t
+
+
+class Bidirectional_RRT(RRG):
+    def __init__(self, workspace, q0, rrt_cls):
+        super().__init__(workspace, q0)
+        self.rrt_cls = rrt_cls
+        self.ta = None
+        self.tb = None
+
+    def query(self, start, goal, k=1000, min_edge_len=0.5, max_edge_len=1):
+        """Use two trees, one starting from start one from goal, to explore the space"""
+        start_time = time.time()
+        ta = self.rrt_cls(self.workspace, start)
+        tb = self.rrt_cls(self.workspace, goal)
+        v_ta = ta.graph.add_vertex(start)
+        v_tb = tb.graph.add_vertex(goal)
+        for _ in range(k):
+            ta.expand_graph(min_edge_len, max_edge_len)
+
+            # operate on second tree
+            tb.expand_graph(min_edge_len, max_edge_len)
+
+            if self.touch(ta, tb):
+                self.preprocessing_time = 0
+                self.query_time = time.time() - start_time
+                self.ta = ta
+                self.tb = tb
+                return
+            if ta.graph.n - tb.graph.n > 10:
+                ta, tb = tb, ta
+        self.preprocessing_time = 0
+        self.query_time = time.time() - start_time
+        self.ta = None
+        self.tb = None
+
+    def touch(self, ta, tb, goal_dist=0.5):
+        """determine if two trees are touching each other"""
+        v, v_tb, dist = ta.closest_vertex_graph(tb)
+        if dist < goal_dist:
+            v.connect(v_tb)
+            ta.graph.add_edge(v, v_tb)
+            ta.v_goal = v
+            tb.v_goal = v_tb
+            return True
+        return False
+
+    def draw(self, ax):
+        if self.ta is None:
+            print("No solution")
+        else:
+            self.ta.draw(ax, rgb=(0, 1, 1))
+            self.tb.draw(ax, rgb=(1, 1, 0))
+
+    def find_path(self):
+        path_ta = self.ta.find_path()
+        path_tb = self.tb.find_path()
+        v_ta, v_tb, _ = path_ta.closest_vertex_graph(path_tb)
+        current = v_tb
+        previous = v_ta
+        while previous.parent != None:
+            new = path_ta.graph.add_vertex(current.coord)
+            new.connect(previous)
+            previous = current
+            current = current.parent
+        return path_ta
+
+
+class Unbounded_RRT(RRT):
+    """RRT with no minimum distance"""
+
+    def __init__(self, workspace, q0):
+        super().__init__(workspace, q0)
+
+    def query(self, start, goal, n=1000, min_edge_len=0.5, max_edge_len=1, niu=0.8):
+        new_size = self.graph.n + n
+        start_time = time.time()
+        while self.graph.n < new_size:
+            # TODO maybe change min and max edge len based on how many points have been taken?
+            # add radius with minimum path
+            self.expand_graph(min_edge_len, max_edge_len, niu)
+            if self.end_condition(goal):
+                self.preprocessing_time = 0
+                self.query_time = time.time() - start_time
+                break
+        self.preprocessing_time = 0
+        self.query_time = time.time() - start_time
+
+    def expand_graph(self, min_edge_len, max_edge_len, niu=0.8):
+        """Add a vertex to the RRT graph"""
+        q = self.workspace.sample()
+        v_nearest, dist = self.closest_vertex(q)
+        q_nearest = v_nearest.coord
+
+        # steer the point closer to the tree
+        q = q + (q_nearest - q) * niu / dist
+        dist = dist - niu
+        if dist < min_edge_len:
+            return
+
+        if self.workspace.point_is_in_collision(q):
+            q = self.closest_point_not_in_collision(q, q_nearest)
+        # don't add if edge is in collision
+        if self.workspace.edge_is_in_collision(q_nearest, q):
+            return
+
+        # split distance into multiple edges
+        if dist > max_edge_len:
+            q_closest = v_nearest.coord
+            vertices = round(dist / max_edge_len)
+            for i in range(vertices - 1):
+                cur_vertex = q_closest + (i + 1) * (q - q_closest) / np.linalg.norm(
+                    q - q_closest
+                )
+                cur_vertex = self.graph.add_vertex(cur_vertex)
+                cur_vertex.connect(v_nearest)
+                cur_vertex.parent = v_nearest
+                v_nearest = cur_vertex
+
+        v = self.graph.add_vertex(q)
+        v.connect(v_nearest)
+        v.parent = v_nearest
 
 
 def grid_neighbour_indices(i, j, nx, ny):
@@ -377,16 +612,33 @@ def main():
         Rectangle((-2, -4), 6, 1),
         Rectangle((-2, 1), 3, 1),
         Rectangle((-4, 3), 1, 2),
+        Circle((-3, 2), 0.5),
     ]
 
     # start and goal locations
     start = (-4, -4)
     goal = (4, 4)
 
-    # use an RRT planner
-    planner = RRG(workspace, start, goal)
-    planner.add_vertices(n=100, connect_multiple_vertices=False)
+    # use an RRG planner
+    # planner = RRG(workspace, start)
 
+    # RRT
+    # planner = RRT(workspace,start)
+
+    # double trees
+    # planner = Bidirectional_RRT(workspace,start,RRT)
+
+    # RRT with no max distance
+    # planner = Unbounded_RRT(workspace, start)
+
+    # Unbounded bidirectional RRT
+    planner = Bidirectional_RRT(workspace, start, Unbounded_RRT)
+
+    planner.query(start, goal)
+    path = planner.find_path()
+
+    # planner.add_vertices(n=100, connect_multiple_vertices=False)
+    # path = planner.RRT(start,goal)
     # alternative: use a grid-based planner (only practical for small dimensions)
     # planner = Grid(workspace, 0.5)
 
@@ -394,8 +646,8 @@ def main():
     # planner = PRM(workspace)
     # planner.add_vertices(n=100)
 
-    path = planner.query(start, goal)
-
+    print("preprocessing time:", planner.preprocessing_time)
+    print("query time:", planner.query_time)
     # plot the results
     plt.figure()
     ax = plt.gca()
@@ -403,12 +655,7 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-
-    if path is None:
-        print("Could not find a path from start to goal!")
-    else:
-        ax.plot(path[:, 0], path[:, 1], color="r")
-
+    path.draw(ax, rgb=(0, 0, 0))
     plt.show()
 
 
