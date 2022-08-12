@@ -1,9 +1,9 @@
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
 from pgraph import UGraph, DGraph, UVertex
 import time
+
 
 class Rectangle:
     """Rectangular obstacle."""
@@ -85,7 +85,7 @@ class Workspace:
 
         The edge is discretized in steps of length h."""
         d = np.linalg.norm(xy2 - xy1)
-        if d ==0:
+        if d == 0:
             return False
         r = (xy2 - xy1) / d
 
@@ -111,7 +111,7 @@ class Workspace:
             if accept_point_in_collision or not collision:
                 samples.append(xy)
             else:
-                # to write later
+                # TODO write later
                 # Idea: while loop that moves point
                 # or try generate n* max_tries_factor
                 continue
@@ -200,12 +200,12 @@ class GraphPlanner:
         """Find the closest vertex belonging to graph to a another given graph T"""
         vertices_graph_T = T.graph
         vertices_graph = self.graph
-        min_dist = vertices_graph[0].distance(vertices_graph_T[0])
+        min_dist = vertices_graph[0].distance(vertices_graph_T[0].coord)
         v_closest = vertices_graph[0]
         v_closest_T = vertices_graph_T[0]
         for vertex in vertices_graph_T:
             for v in vertices_graph:
-                d = vertex.distance(v)
+                d = vertex.distance(v.coord)
 
                 if d < min_dist:
                     min_dist = d
@@ -398,10 +398,6 @@ class RRT(RRG):
             return True
         return False
 
-    def draw(self, ax, vertices=True, edges= True, rgb=(1,0.5,0)):
-        super().draw(ax, vertices=vertices, edges=edges, rgb=rgb)
-        
-    
     def find_path(self):
         t = GraphPlanner(UGraph())
         t.graph.add_vertex(self.v_goal)
@@ -409,7 +405,7 @@ class RRT(RRG):
         while current.parent != None:
             new_node = current.parent
             t.graph.add_vertex(new_node)
-            t.graph.add_edge(current,new_node)
+            t.graph.add_edge(current, new_node)
             current = current.parent
         return t
 
@@ -468,16 +464,15 @@ class Bidirectional_RRT(RRG):
     def find_path(self):
         path_ta = self.ta.find_path()
         path_tb = self.tb.find_path()
-        v_ta,v_tb,_ = path_ta.closest_vertex_graph(path_tb)
+        v_ta, v_tb, _ = path_ta.closest_vertex_graph(path_tb)
         current = v_tb
         previous = v_ta
-        while previous.parent!= None:
+        while previous.parent != None:
             new = path_ta.graph.add_vertex(current.coord)
             new.connect(previous)
             previous = current
             current = current.parent
         return path_ta
-
 
 
 class Unbounded_RRT(RRT):
@@ -534,8 +529,6 @@ class Unbounded_RRT(RRT):
         v = self.graph.add_vertex(q)
         v.connect(v_nearest)
         v.parent = v_nearest
-
-
 
 
 def grid_neighbour_indices(i, j, nx, ny):
@@ -630,16 +623,16 @@ def main():
     # planner = RRG(workspace, start)
 
     # RRT
-    #planner = RRT(workspace,start)
+    # planner = RRT(workspace,start)
 
     # double trees
-    #planner = Bidirectional_RRT(workspace,start,RRT)
+    # planner = Bidirectional_RRT(workspace,start,RRT)
 
     # RRT with no max distance
-    #planner = Unbounded_RRT(workspace, start)
+    # planner = Unbounded_RRT(workspace, start)
 
     # Unbounded bidirectional RRT
-    planner = Bidirectional_RRT(workspace, start,Unbounded_RRT)
+    planner = Bidirectional_RRT(workspace, start, Unbounded_RRT)
 
     planner.query(start, goal)
     path = planner.find_path()
@@ -662,9 +655,8 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    path.draw(ax,rgb=(0,0,0))
+    path.draw(ax, rgb=(0, 0, 0))
     plt.show()
-    
 
 
 if __name__ == "__main__":
