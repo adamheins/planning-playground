@@ -55,6 +55,7 @@ class RRT_star(RRT):
         if dist < min_edge_len:
             return
         self.new_point_routine(q,v_nearest)
+        return
 
     def new_point_routine(self, q, v_nearest):
         n =self.graph.n
@@ -72,6 +73,7 @@ class RRT_star(RRT):
                 if cost>c_prime:
                     cost=c_prime
                     v_nearest = vertex
+
         self.cost_dic[tuple(q)] = cost
         v = self.graph.add_vertex(q)
         edge = v.connect(v_nearest)

@@ -664,10 +664,10 @@ def main():
     #planner = RRT(workspace,start)
 
     # double trees
-    planner = Bidirectional_RRT(workspace,start,RRT)
+    #planner = Bidirectional_RRT(workspace,start,RRT)
 
     # RRT with no max distance
-    # planner = Unbounded_RRT(workspace, start)
+    planner = Unbounded_RRT(workspace, start)
 
     # Unbounded bidirectional RRT
     #planner = Bidirectional_RRT(workspace, start,Unbounded_RRT)

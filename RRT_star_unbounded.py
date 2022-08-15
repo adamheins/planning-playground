@@ -88,26 +88,37 @@ class RRT_star(RRT):
                 v_nearest = cur_vertex
 
         v = self.graph.add_vertex(q)
-        v.connect(v_nearest)
+        edge = v.connect(v_nearest)
         v.parent = v_nearest
         self.cost_dic[tuple(q)] = cost
-        v = self.graph.add_vertex(q)
-        edge = v.connect(v_nearest)
         v.parent = v_nearest
         v.edge = edge
         q_min = v_nearest.coord
 
-        #reconnect neighboring edges
+        #
         for vertex in neighborhood:
             point = vertex.coord
-            if np.linalg.norm(point -q_min)== 0:
+            dist = np.linalg.norm(point -q_min)
+            if dist== 0:
                 continue
             cost = self.cost(v.coord) + self.connection(q,point)
-            if (not self.workspace.edge_is_in_collision(q,point)) and (self.cost(vertex.coord)>cost):
+            if (not self.workspace.edge_is_in_collision(q,point)) and (self.cost(point)>cost):
                 try:
                     self.graph.remove(vertex.edge)
                 except:
                     print(vertex.coord)
+                # split distance into multiple edges
+                # if dist > max_edge_len:
+                #     vertices = round(dist / max_edge_len)
+                #     for i in range(vertices - 1):
+                #         cur_vertex = point+ (i + 1) * (q - point) / dist
+                #         cur_vertex = self.graph.add_vertex(cur_vertex)
+                #         edge = cur_vertex.connect(vertex)
+                #         cur_vertex.parent = vertex
+                #         self.cost_dic[tuple(cur_vertex.coord)] = self.cost(point) + self.connection(point,cur_vertex.coord)
+                #         cur_vertex.edge = edge
+                #         v_nearest = cur_vertex
+
                 vertex.parent = v
                 edge = vertex.connect(v)
                 vertex.edge = edge
