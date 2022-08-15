@@ -63,8 +63,6 @@ class RRT(RRG):
             return True
         return False
 
-    def draw(self, ax, vertices=True, edges= True, rgb=(1,0.5,0)):
-        super().draw(ax, vertices=vertices, edges=edges, rgb=rgb)
         
     
     def find_path(self):
@@ -74,6 +72,6 @@ class RRT(RRG):
         while current.parent != None:
             new_node = current.parent
             t.graph.add_vertex(new_node)
-            t.graph.add_edge(current,new_node)
+            t.graph.add_edge(current, new_node)
             current = current.parent
         return t

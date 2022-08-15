@@ -56,10 +56,10 @@ class Bidirectional_RRT(RRG):
     def find_path(self):
         path_ta = self.ta.find_path()
         path_tb = self.tb.find_path()
-        v_ta,v_tb,_ = path_ta.closest_vertex_graph(path_tb)
+        v_ta ,v_tb, _ = path_ta.closest_vertex_graph(path_tb)
         current = v_tb
         previous = v_ta
-        while previous.parent!= None:
+        while previous.parent != None:
             new = path_ta.graph.add_vertex(current.coord)
             new.connect(previous)
             previous = current

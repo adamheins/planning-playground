@@ -107,7 +107,7 @@ class Workspace:
             if accept_point_in_collision or not collision:
                 samples.append(xy)
             else:
-                # to write later
+                # TODO write later
                 # Idea: while loop that moves point
                 # or try generate n* max_tries_factor
                 continue

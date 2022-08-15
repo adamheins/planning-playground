@@ -9,7 +9,7 @@ class GraphPlanner:
         # graph may be directed or undirected, as selected by the subclass
         self.graph = graph
 
-    def draw(self, ax, vertices=True, edges=True, rgb=(0, 0, 1)):
+    def draw(self, ax, vertices=True, edges=True, rgb=(1, 0.5, 0)):
         """Draw the graph."""
         if vertices:
             for vertex in self.graph:
@@ -81,12 +81,12 @@ class GraphPlanner:
         """Find the closest vertex belonging to graph to a another given graph T"""
         vertices_graph_T = T.graph
         vertices_graph = self.graph
-        min_dist = vertices_graph[0].distance(vertices_graph_T[0])
+        min_dist = vertices_graph[0].distance(vertices_graph_T[0].coord)
         v_closest = vertices_graph[0]
         v_closest_T = vertices_graph_T[0]
         for vertex in vertices_graph_T:
             for v in vertices_graph:
-                d = vertex.distance(v)
+                d = vertex.distance(v.coord)
 
                 if d < min_dist:
                     min_dist = d

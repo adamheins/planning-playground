@@ -24,13 +24,13 @@ def main():
     # planner = RRG(workspace, start)
 
     # RRT
-    #planner = RRT(workspace,start)
+    # planner = RRT(workspace,start)
 
     # double trees
-    #planner = Bidirectional_RRT(workspace,start,RRT)
+    # planner = Bidirectional_RRT(workspace,start,RRT)
 
     # RRT with no max distance
-    #planner = Unbounded_RRT(workspace, start)
+    # planner = Unbounded_RRT(workspace, start)
 
     # Unbounded bidirectional RRT
     planner = Bidirectional_RRT(workspace, start,Unbounded_RRT)
@@ -56,7 +56,7 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    path.draw(ax,rgb=(0,0,0))
+    path.draw(ax,rgb=(0, 0, 0))
     plt.show()
     
 
