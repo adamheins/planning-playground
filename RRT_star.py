@@ -16,12 +16,11 @@ class RRT_star(RRT):
     def cost(self,vb):
         """Determine the cost in between two points"""
         cost = 0
-        vb = tuple(vb)
-        for key in self.cost_dic.keys():
-            if key == vb: 
-                cost = self.cost_dic[vb]
-            # elif key == va:
-            #     cost_a = self.cost_dic[vb]
+        parent = vb.parent
+        while vb.parent != None:
+            cost += self.connection(vb.coord,parent.coord)
+            vb = vb.parent
+            parent = vb.parent
         return cost
         
 
@@ -54,27 +53,26 @@ class RRT_star(RRT):
         q = q_new
         if dist < min_edge_len:
             return
-        self.new_point_routine(q,v_nearest)
+        self.new_point_routine(q,v_nearest,dist,max_edge_len,min_edge_len)
         return
 
-    def new_point_routine(self, q, v_nearest):
+    def new_point_routine(self, q, v_nearest,dist,max_edge_len,min_edge_len):
         n =self.graph.n
         #print(2 * math.sqrt((math.log(n) / n)))
         #rn = min(100/n, 5) # change rn depending on how many nodes there are, look at formula on RTT star paper
-        rn = 5
+        rn = 2*max_edge_len
         neighborhood = self.near_vertices(q,rn)
         if len(neighborhood) == 0:
             return
-        cost = self.cost(v_nearest.coord) + self.connection(v_nearest.coord, q)
+        cost = self.cost(v_nearest) + self.connection(v_nearest.coord, q)
         for vertex in neighborhood:
             point = vertex.coord
             if not self.workspace.edge_is_in_collision(q,point):
-                c_prime = self.cost(point) + self.connection(point, q)
+                c_prime = self.cost(vertex) + self.connection(point, q)
                 if cost>c_prime:
                     cost=c_prime
                     v_nearest = vertex
 
-        self.cost_dic[tuple(q)] = cost
         v = self.graph.add_vertex(q)
         edge = v.connect(v_nearest)
         v.parent = v_nearest
@@ -85,23 +83,22 @@ class RRT_star(RRT):
             point = vertex.coord
             if np.linalg.norm(point -q_min)== 0:
                 continue
-            cost = self.cost(v.coord) + self.connection(q,point)
-            if (not self.workspace.edge_is_in_collision(q,point)) and (self.cost(vertex.coord)>cost):
+            cost = self.cost(v) + self.connection(q,point)
+            if (not self.workspace.edge_is_in_collision(q,point)) and (self.cost(vertex)>cost):
                 self.graph.remove(vertex.edge)
                 vertex.parent = v
                 edge = vertex.connect(v)
                 vertex.edge = edge
-                self.cost_dic[tuple(point)] = cost
         return v
 
-    def end_condition(self, goal, goal_dist=0.5):
+    def end_condition(self, goal, max_edge_len,min_edge_len, goal_dist=0.5):
         v_nearest, dist = self.closest_vertex(goal)
         if tuple(goal) in [tuple(i.coord) for i in self.graph]:
             return True 
         elif dist <= goal_dist and not self.workspace.edge_is_in_collision(
             v_nearest.coord, goal
         ):
-            v = self.new_point_routine(goal,v_nearest)
+            v = self.new_point_routine(goal,v_nearest,dist,max_edge_len,min_edge_len)
             self.v_goal = v
             return True
         return False
@@ -122,24 +119,24 @@ class RRT_star(RRT):
             # TODO maybe change min and max edge len based on how many points have been taken?
             # add radius with minimum path
             self.expand_graph(min_edge_len, max_edge_len,niu)
-            if self.end_condition(goal,goal_dist=1) and i%30 == 0:
-                plt.figure()
-                ax = plt.gca()
-                self.workspace.draw(ax)
-                self.draw(ax)
-                ax.plot(start[0], start[1], "o", color="g")
-                ax.plot(goal[0], goal[1], "o", color="r")
-                path = self.find_path()
-                path.draw(ax)
-                plt.show()
-            elif i%30 == 0:
-                plt.figure()
-                ax = plt.gca()
-                self.workspace.draw(ax)
-                self.draw(ax)
-                ax.plot(start[0], start[1], "o", color="g")
-                ax.plot(goal[0], goal[1], "o", color="r")
-                plt.show()
+            if self.end_condition(goal,max_edge_len,min_edge_len,goal_dist=1) and i%30 == 0:
+            #     plt.figure()
+            #     ax = plt.gca()
+            #     self.workspace.draw(ax)
+            #     self.draw(ax)
+            #     ax.plot(start[0], start[1], "o", color="g")
+            #     ax.plot(goal[0], goal[1], "o", color="r")
+                  path = self.find_path()
+            #     path.draw(ax)
+            #     plt.show()
+            # elif i%30 == 0:
+            #     plt.figure()
+            #     ax = plt.gca()
+            #     self.workspace.draw(ax)
+            #     self.draw(ax)
+            #     ax.plot(start[0], start[1], "o", color="g")
+            #     ax.plot(goal[0], goal[1], "o", color="r")
+            #     plt.show()
             
             
                 
@@ -166,7 +163,7 @@ def main():
     start = (-4, -4)
     goal = (4, 4)
     planner = RRT_star(workspace,start)
-    planner.query(start, goal)
+    planner.query(start, goal,min_edge_len=0.2,max_edge_len=0.5)
     path = planner.find_path()
 
     print("preprocessing time:", planner.preprocessing_time)
