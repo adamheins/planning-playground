@@ -10,8 +10,12 @@ import math
 
 class RRT_star(RRT):
     def __init__(self, workspace, q0):
-        super().__init__(workspace, q0)
-        self.cost_dic = {}
+        self.graph = UGraph()
+        self.workspace = workspace
+        v = self.graph.add_vertex(q0)
+        v.parent = None
+        v.edge = False
+        
 
     def cost(self,vb):
         """Determine the cost in between two points"""
@@ -81,14 +85,43 @@ class RRT_star(RRT):
 
         for vertex in neighborhood:
             point = vertex.coord
-            if np.linalg.norm(point -q_min)== 0:
+            if vertex is v_nearest:
                 continue
             cost = self.cost(v) + self.connection(q,point)
-            if (not self.workspace.edge_is_in_collision(q,point)) and (self.cost(vertex)>cost):
-                self.graph.remove(vertex.edge)
+            if self.workspace.edge_is_in_collision(q,point):
+                continue
+            if  (self.cost(vertex)>cost):
+                try:
+                    self.graph.remove(vertex.edge)
+                    
+                except:
+                    print(vertex.edge)
+                    plt.figure()
+                    ax = plt.gca()
+                    self.workspace.draw(ax)
+                    self.draw(ax)
+                    ax.plot(vertex.coord[0], vertex.coord[1], "o", color="g")
+                    ax.plot(vertex.parent.coord[0], vertex.parent.coord[1], "o", color="r")
+                    ax.plot(v.coord[0],v.coord[1], "o",color = "b")
+                    ax.plot(v_nearest.coord[0],v_nearest.coord[1],"o",color = "purple")
+                    plt.show()
                 vertex.parent = v
                 edge = vertex.connect(v)
                 vertex.edge = edge
+            for i in self.graph:
+                if i.edge == None:
+                    print("yes")
+                    print(vertex.parent)
+                    plt.figure()
+                    ax = plt.gca()
+                    self.workspace.draw(ax)
+                    self.draw(ax)
+                    ax.plot(v.coord[0],v.coord[1], "o",color = "b")
+                    ax.plot(v_nearest.coord[0],v_nearest.coord[1],"o",color = "purple")
+                    ax.plot(i.coord[0],i.coord[1], "o",color = "g")
+                    plt.show()
+
+
         return v
 
     def end_condition(self, goal, max_edge_len,min_edge_len, goal_dist=0.5):
@@ -163,7 +196,7 @@ def main():
     start = (-4, -4)
     goal = (4, 4)
     planner = RRT_star(workspace,start)
-    planner.query(start, goal,min_edge_len=0.2,max_edge_len=0.5)
+    planner.query(start, goal,n=3000,min_edge_len=0.2,max_edge_len=1)
     path = planner.find_path()
 
     print("preprocessing time:", planner.preprocessing_time)
