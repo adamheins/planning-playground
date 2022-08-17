@@ -405,6 +405,8 @@ class RRT(RRG):
     def find_path(self):
         t = GraphPlanner(UGraph())
         t.graph.add_vertex(self.v_goal)
+        if self.v_goal ==None:
+            return None
         current = self.v_goal
         while current.parent != None:
             new_node = current.parent
