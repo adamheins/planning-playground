@@ -7,6 +7,7 @@ class Unbounded_RRT(RRT):
 
     def __init__(self, workspace, q0):
         super().__init__(workspace, q0)
+        self.v_goal = None
 
     def query(self, start, goal, n=1000, min_edge_len=0.5, max_edge_len=1, niu=0.8):
         new_size = self.graph.n + n

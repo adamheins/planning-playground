@@ -7,6 +7,7 @@ class RRT(RRG):
     def __init__(self, workspace, q0):
         super().__init__(workspace, q0)
         self.v_start.parent = None
+        self.v_goal = None
 
     def query(
         self,
@@ -51,7 +52,7 @@ class RRT(RRG):
         v.connect(v_nearest)
         v.parent = v_nearest
 
-    def end_condition(self, goal, goal_dist=0.5):
+    def end_condition(self, goal, goal_dist=1):
         v_nearest, dist = self.closest_vertex(goal)
         if dist <= goal_dist and not self.workspace.edge_is_in_collision(
             v_nearest.coord, goal
@@ -61,17 +62,17 @@ class RRT(RRG):
             v.parent = v_nearest
             self.v_goal = v
             return True
-        return False
-
-        
+        return False   
     
     def find_path(self):
-        t = GraphPlanner(UGraph())
-        t.graph.add_vertex(self.v_goal)
-        current = self.v_goal
-        while current.parent != None:
-            new_node = current.parent
-            t.graph.add_vertex(new_node)
-            t.graph.add_edge(current, new_node)
-            current = current.parent
-        return t
+            t = GraphPlanner(UGraph())
+            t.graph.add_vertex(self.v_goal)
+            if self.v_goal ==None:
+                return None
+            current = self.v_goal
+            while current.parent != None:
+                new_node = current.parent
+                t.graph.add_vertex(new_node)
+                t.graph.add_edge(current,new_node)
+                current = current.parent
+            return t

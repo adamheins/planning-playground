@@ -11,8 +11,8 @@ git clone https://github.com/adamheins/planning-playground.git
 
 Install dependencies (make sure you're using **Python 3.7+**):
 ```
-python3 -m pip install -e .
-python3 -m pip install -e git+https://github.com/igraph/python-igraph.git#egg=pgraph
+pip install -e .
+pip install -e git+https://github.com/petercorke/pgraph-python.git#egg=pgraph
 ```
 
 ## Usage
