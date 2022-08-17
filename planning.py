@@ -403,17 +403,14 @@ class RRT(RRG):
         
     
     def find_path(self):
-        t = GraphPlanner(UGraph())
-        t.graph.add_vertex(self.v_goal)
-        if self.v_goal ==None:
+        if self.v_goal == None:
             return None
         current = self.v_goal
-        while current.parent != None:
-            new_node = current.parent
-            t.graph.add_vertex(new_node)
-            t.graph.add_edge(current,new_node)
-            current = current.parent
-        return t
+        path = []
+        while current != None:
+            path.append(current.coord)
+            current = current.parent    
+        return np.array(path)
 
 
 class Bidirectional_RRT(RRG):

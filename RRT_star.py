@@ -1,5 +1,6 @@
 
 
+from turtle import color
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
@@ -93,6 +94,7 @@ class RRT_star(RRT):
 
 
             if self.end_condition(goal, goal_dist=1): #and i%30 == 0
+                new_size-=1
                 samples.append(goal)
         self.preprocessing_time = 0
         self.query_time = time.time() - start_time
@@ -193,8 +195,8 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    if path!=None:
-        path.draw(ax,rgb=(0.5,1,0))
+    if type(path) == type(np.array([])):
+        ax.plot(path[:, 0], path[:, 1], color="g")
     plt.show()
     
 
