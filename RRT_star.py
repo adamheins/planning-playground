@@ -57,9 +57,9 @@ class RRT_star(RRT):
         samples = []
         prev = 0
         while new_size<n:
-            if prev !=new_size:
-                print(new_size)
-                prev = new_size
+            # if prev !=new_size:
+            #     print(new_size)
+            #     prev = new_size
             # TODO maybe change min and max edge len based on how many points have been taken?
             # add radius with minimum path
             if len(samples) == 0: 
@@ -94,29 +94,6 @@ class RRT_star(RRT):
 
             if self.end_condition(goal, goal_dist=1): #and i%30 == 0
                 samples.append(goal)
-            
-            # plt.figure()
-            # ax = plt.gca()
-            # self.workspace.draw(ax)
-            # self.draw(ax)
-            # ax.plot(start[0], start[1], "o", color="g")
-            # ax.plot(goal[0], goal[1], "o", color="r")
-            # path.draw(ax)
-            # plt.show()
-            # elif i%30 == 0:
-            #     plt.figure()
-            #     ax = plt.gca()
-            #     self.workspace.draw(ax)
-            #     self.draw(ax)
-            #     ax.plot(start[0], start[1], "o", color="g")
-            #     ax.plot(goal[0], goal[1], "o", color="r")
-            #     plt.show()
-            
-            
-                
-                # self.preprocessing_time = 0
-                # self.query_time = time.time() - start_time
-                # break
         self.preprocessing_time = 0
         self.query_time = time.time() - start_time
 
