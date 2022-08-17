@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
-from pgraph import UGraph, DGraph, UVertex
+from pgraph import UGraph, DGraph, UVertex, Edge
 import time
 from planning import RRT, Workspace, Rectangle, Circle
 import math
@@ -14,7 +14,8 @@ class RRT_star(RRT):
         self.workspace = workspace
         v = self.graph.add_vertex(q0)
         v.parent = None
-        v.edge = False
+        v.edge = Edge
+        v.edge.v1 = False
         
 
     def cost(self,vb):
@@ -78,7 +79,7 @@ class RRT_star(RRT):
                     v_nearest = vertex
 
         v = self.graph.add_vertex(q)
-        edge = v.connect(v_nearest)
+        edge = self.graph.add_edge(v,v_nearest)
         v.parent = v_nearest
         v.edge = edge
         q_min = v_nearest.coord
@@ -91,35 +92,13 @@ class RRT_star(RRT):
             if self.workspace.edge_is_in_collision(q,point):
                 continue
             if  (self.cost(vertex)>cost):
-                try:
-                    self.graph.remove(vertex.edge)
-                    
-                except:
-                    print(vertex.edge)
-                    plt.figure()
-                    ax = plt.gca()
-                    self.workspace.draw(ax)
-                    self.draw(ax)
-                    ax.plot(vertex.coord[0], vertex.coord[1], "o", color="g")
-                    ax.plot(vertex.parent.coord[0], vertex.parent.coord[1], "o", color="r")
-                    ax.plot(v.coord[0],v.coord[1], "o",color = "b")
-                    ax.plot(v_nearest.coord[0],v_nearest.coord[1],"o",color = "purple")
-                    plt.show()
+                print("before",vertex.edge)
+                print(vertex.edge.v1.parent)
+                self.graph.remove(vertex.edge)
                 vertex.parent = v
-                edge = vertex.connect(v)
+                edge = self.graph.add_edge(v,vertex)
                 vertex.edge = edge
-            for i in self.graph:
-                if i.edge == None:
-                    print("yes")
-                    print(vertex.parent)
-                    plt.figure()
-                    ax = plt.gca()
-                    self.workspace.draw(ax)
-                    self.draw(ax)
-                    ax.plot(v.coord[0],v.coord[1], "o",color = "b")
-                    ax.plot(v_nearest.coord[0],v_nearest.coord[1],"o",color = "purple")
-                    ax.plot(i.coord[0],i.coord[1], "o",color = "g")
-                    plt.show()
+
 
 
         return v
@@ -152,7 +131,7 @@ class RRT_star(RRT):
             # TODO maybe change min and max edge len based on how many points have been taken?
             # add radius with minimum path
             self.expand_graph(min_edge_len, max_edge_len,niu)
-            if self.end_condition(goal,max_edge_len,min_edge_len,goal_dist=1) and i%30 == 0:
+            if self.end_condition(goal,max_edge_len,min_edge_len,goal_dist=1): #and i%30 == 0:
             #     plt.figure()
             #     ax = plt.gca()
             #     self.workspace.draw(ax)
@@ -178,6 +157,8 @@ class RRT_star(RRT):
                 # break
         self.preprocessing_time = 0
         self.query_time = time.time() - start_time
+    
+
 
 
 
