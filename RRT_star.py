@@ -39,7 +39,7 @@ class RRT_star(RRT):
                 X_near.append(vertex)
         return X_near
     
-    def connection(self, va, vb):
+    def connection_cost(self, va, vb):
         """Return the cost of connecting two verices"""
         return np.linalg.norm(va -vb)
 
@@ -51,10 +51,13 @@ class RRT_star(RRT):
         n=1000,
         min_edge_len=0.5,
         max_edge_len=1,
-        niu = 0.8
-    ):
+        niu = 0.8 ):
         new_size = self.graph.n 
         start_time = time.time()
+        # samples is a list that is actually used mostly in the unbounded RRT star although I included it here for consistency.
+        # It stores all the points that have been sampled and are safe to add to the tree. When samples is empty the code first 
+        # looks for a new point and then tries to add it. 
+        # If samples is not empty then the workspace is not sampled as there are already points that can be added to the tree.
         samples = []
         prev = 0
         while new_size<n:
@@ -103,7 +106,8 @@ class RRT_star(RRT):
 
 
     def steer(self,q, v_nearest, dist, niu, min_edge_len):
-        """Steer the point closer to the tree"""
+        """Steer the point closer to the tree
+        Notes: niu specifies how far to shift the sampled point (q) toward the closest point in the tree (q_nearest)."""
         q_nearest = v_nearest.coord
         q_new = q + (q_nearest - q) * niu / dist
         dist = dist - niu
@@ -120,11 +124,11 @@ class RRT_star(RRT):
         """Find the vertex belonging to the graph, closest to q"""
         if len(neighborhood) == 0:
             return v_nearest
-        cost = self.cost(v_nearest) + self.connection(v_nearest.coord, q)
+        cost = self.cost(v_nearest) + self.connection_cost(v_nearest.coord, q)
         for vertex in neighborhood:
             point = vertex.coord
             if not self.workspace.edge_is_in_collision(q,point):
-                c_prime = self.cost(vertex) + self.connection(point, q)
+                c_prime = self.cost(vertex) + self.connection_cost(point, q)
                 if cost>c_prime:
                     cost=c_prime
                     v_nearest = vertex
@@ -137,7 +141,7 @@ class RRT_star(RRT):
             point = vertex.coord
             if vertex is v_nearest:
                 continue
-            cost = self.cost(v) + self.connection(q,point)
+            cost = self.cost(v) + self.connection_cost(q,point)
             if self.workspace.edge_is_in_collision(q,point):
                 continue
             if  (self.cost(vertex)>cost):
