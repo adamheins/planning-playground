@@ -1,11 +1,11 @@
-from turtle import color
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
-from pgraph import UGraph, DGraph, UVertex, Edge
+from pgraph import UGraph, UVertex, Edge
 import time
 from planning import RRT, Workspace, Rectangle, Circle
-import math
+
+import IPython
 
 
 class RRT_star(RRT):
@@ -55,37 +55,67 @@ class RRT_star(RRT):
 
         return v
 
-    def extend(self, start, goal, n=1000, min_edge_len=0.5, max_edge_len=1, niu=1, stop_early=True):
-        # samples is a list that is actually used mostly in the unbounded RRT
-        # star although I included it here for consistency. It stores all the
-        # points that have been sampled and are safe to add to the tree. When
-        # samples is empty the code first looks for a new point and then tries
-        # to add it. If samples is not empty then the workspace is not sampled
-        # as there are already points that can be added to the tree.
+    def extend(
+        self,
+        goal,
+        n=1000,
+        min_edge_len=0.5,
+        max_edge_len=1,
+        niu=1,
+        divide_edges=True,
+        stop_early=True,
+    ):
+        """Extend the tree with up to n nodes.
+
+        If `stop_early` is passed, return as soon as a path to the goal is found.
+        If `divide_edges` is passed, then instead of discarding samples farther
+        than `max_edge_len` from the graph, multiples vertices are added such
+        that the edges between each are less than `max_edge_len`.
+
+        Returns True if a path to the goal exists, False otherwise.
+        """
         count = 0
         while count < n:
             q = self.workspace.sample()
             v_nearest, dist = self.closest_vertex(q)
-            q = self.steer(q, v_nearest, dist, niu, min_edge_len)
-            if q is None:
-                continue
 
-            # add the new vertex
-            # TODO rewire_radius should be a function of count
-            v_nearest, _ = self.closest_vertex(q)
-            v = self.add_vertex(v_nearest, q, max_edge_len, rewire=True)
-            count += 1
+            # if new vertex would be too far away, split it so that each new
+            # vertex is within max_edge_len of each other
+            if divide_edges and dist > max_edge_len:
+                num_samples = round(dist / max_edge_len)
+                qs = []
+                for i in range(num_samples):
+                    step = (num_samples - i) / num_samples
+                    qs.append(v_nearest.coord + step * (q - v_nearest.coord))
+            else:
+                qs = [q]
 
-            # try to connect to the goal if we don't already have a path
-            if not self.has_path_to_goal():
-                if v.distance(goal) <= max_edge_len and not self.workspace.edge_is_in_collision(q, goal):
-                    self.v_goal = self.add_vertex(v, goal, max_edge_len, rewire=True)
-                    count += 1
+            # process all samples
+            while len(qs) > 0:
+                q = qs.pop()
+                v_nearest, dist = self.closest_vertex(q)
+                q = self.steer(q, v_nearest, dist, niu, min_edge_len)
+                if q is None:
+                    continue
 
-            # if we just want a path and don't want to iterate further, stop
-            # now
-            if self.has_path_to_goal() and stop_early:
-                return True
+                # add the new vertex
+                # TODO rewire_radius should be a function of count
+                v_nearest, _ = self.closest_vertex(q)
+                v = self.add_vertex(v_nearest, q, max_edge_len, rewire=True)
+                count += 1
+
+                # try to connect to the goal if we don't already have a path
+                if not self.has_path_to_goal():
+                    if v.distance(
+                        goal
+                    ) <= max_edge_len and not self.workspace.edge_is_in_collision(q, goal):
+                        self.v_goal = self.add_vertex(v, goal, max_edge_len, rewire=True)
+                        count += 1
+
+                # if we just want a path and don't want to iterate further, stop
+                # now
+                if self.has_path_to_goal() and stop_early:
+                    return True
 
         return self.has_path_to_goal()
 
@@ -145,7 +175,7 @@ def main():
     planner = RRT_star(workspace, start)
 
     t = time.time()
-    while not planner.extend(start, goal, n=100, min_edge_len=0.5, max_edge_len=5):
+    while not planner.extend(goal, n=100, min_edge_len=0.5, max_edge_len=5):
         pass
     query_time = time.time() - t
 
