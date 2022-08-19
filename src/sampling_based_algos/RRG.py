@@ -14,6 +14,7 @@ class RRG(GraphPlanner):
         super().__init__(UGraph())
         self.workspace = workspace
         self.v_start = self.graph.add_vertex(q0)
+        self.v_goal = None
 
         # TODO include this properly, bias toward it, etc.
         # self.goal = self.graph.add_vertex(qf)

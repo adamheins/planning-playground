@@ -1,9 +1,11 @@
 
+from RRT_star.RRT_star_unbounded import RRT_star_unbounded
 from src.env.Workspace import Workspace,Circle,Rectangle
 from src.sampling_based_algos.RRG import RRG
 from src.sampling_based_algos.RRT import RRT
 from src.sampling_based_algos.Unbounded_RRT import Unbounded_RRT
 from src.sampling_based_algos.Bidirectional_RRT import Bidirectional_RRT
+from src.sampling_based_algos.RRT_star import RRT_star
 from src.sampling_based_algos.RRT_star import RRT_star
 import matplotlib.pyplot as plt
 
@@ -33,7 +35,7 @@ def main():
     #planner = RRT(workspace,start)
 
     # double trees
-    planner = Bidirectional_RRT(workspace,start,RRT)
+    # planner = Bidirectional_RRT(workspace,start,RRT)
 
     # RRT with no max distance
     # planner = Unbounded_RRT(workspace, start)
@@ -42,10 +44,11 @@ def main():
    # planner = Bidirectional_RRT(workspace, start,Unbounded_RRT)
 
     # RRT_star
-    #planner = RRT_star(workspace, start)
+    planner = RRT_star(workspace, start)
 
 
-    #planner.query(start, goal,n=300)
+
+    planner.expand(start, goal,n=300)
     path = planner.find_path()
 
     # planner.add_vertices(n=100, connect_multiple_vertices=False)

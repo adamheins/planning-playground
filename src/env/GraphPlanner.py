@@ -77,8 +77,8 @@ class GraphPlanner:
 
         return v_closest, min_dist
 
-    def closest_vertex_graph(self, T):
-        """Find the closest vertex belonging to graph to a another given graph T"""
+    def closest_vertex_to_graph(self, T):
+        """Find the closest vertex to a another given graph T."""
         vertices_graph_T = T.graph
         vertices_graph = self.graph
         min_dist = vertices_graph[0].distance(vertices_graph_T[0].coord)
