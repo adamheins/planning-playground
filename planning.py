@@ -87,8 +87,10 @@ class Workspace:
 
         The edge is discretized in steps of length h."""
         d = np.linalg.norm(xy2 - xy1)
-        r = (xy2 - xy1) / d
+        if d < h:
+            return not self.point_is_in_collision(xy1) and not self.point_is_in_collision(xy2)
 
+        r = (xy2 - xy1) / d
         steps = np.arange(0, d, h)
         points = xy1 + steps[:, None] * r
         for point in points:
@@ -108,13 +110,8 @@ class Workspace:
             xy = (np.random.random(2) - 0.5) * [self.width, self.height]
             collision = self.point_is_in_collision(xy)
             # add this point if it is collision-free
-            if accept_point_in_collision or not collision:
+            if not collision or accept_point_in_collision:
                 samples.append(xy)
-            else:
-                # to write later
-                # Idea: while loop that moves point
-                # or try generate n* max_tries_factor
-                continue
 
         if n == 1:
             return samples[0]
@@ -162,16 +159,17 @@ class GraphPlanner:
         # return the k closest ones
         return [vo for _, vo in dists[:k]]
 
-    def neighbours_within_dist(self, v, dist, vertices=None):
-        """Get all vertices within dist of vertex v."""
+    # TODO this previously took a vertex, as the above function does
+    def neighbours_within_dist(self, q, dist, vertices=None, tol=1e-3):
+        """Get all vertices within dist of q."""
         if vertices is None:
             vertices = self.graph
 
         dists = []
         for vo in vertices:
-            if v is vo:
-                continue
-            dists.append((vo.distance(v.coord), vo))
+            r = vo.distance(q)
+            if r <= dist:
+                dists.append((r, vo))
 
         dists.sort(key=lambda x: x[0])
 
@@ -316,7 +314,7 @@ class RRG(GraphPlanner):
 
             # find and add additional nearby vertices
             if connect_multiple_vertices:
-                vs_near = self.neighbours_within_dist(v, near_dist)
+                vs_near = self.neighbours_within_dist(v.coord, near_dist)
                 for vo in vs_near:
                     # don't make duplicate edges
                     if vo.isneighbour(v):
@@ -398,18 +396,12 @@ class RRT(RRG):
             return True
         return False
 
-    def draw(self, ax, vertices=True, edges= True, rgb=(1,0.5,0)):
-        super().draw(ax, vertices=vertices, edges=edges, rgb=rgb)
-        
-    
-    def find_path(self):
-        if self.v_goal == None:
-            return None
-        current = self.v_goal
-        path = []
-        while current != None:
-            path.append(current.coord)
-            current = current.parent    
+    def find_path(self, goal):
+        v, dist = self.closest_vertex(goal)
+        path = [goal]
+        while v != None:
+            path.append(v.coord)
+            v = v.parent
         return np.array(path)
 
 
