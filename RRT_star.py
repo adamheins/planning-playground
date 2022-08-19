@@ -5,8 +5,6 @@ from pgraph import UGraph, UVertex, Edge
 import time
 from planning import RRT, Workspace, Rectangle, Circle
 
-import IPython
-
 
 class RRT_star(RRT):
     def __init__(self, workspace, q0):
