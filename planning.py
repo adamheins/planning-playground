@@ -341,65 +341,65 @@ class RRT(RRG):
         super().__init__(workspace, q0)
         self.v_start.parent = None
 
-    def query(
-        self,
-        start,
-        goal,
-        n=1000,
-        min_edge_len=0.5,
-        max_edge_len=1,
-    ):
-        new_size = self.graph.n + n
-        start_time = time.time()
-        while self.graph.n < new_size:
-            # TODO maybe change min and max edge len based on how many points have been taken?
-            # add radius with minimum path
-            self.expand_graph(min_edge_len, max_edge_len)
-            if self.end_condition(goal):
-                self.preprocessing_time = 0
-                self.query_time = time.time() - start_time
-                break
-        self.preprocessing_time = 0
-        self.query_time = time.time() - start_time
+        # updated when we find a path to the goal node
+        self.v_goal = None
 
-    def expand_graph(self, min_edge_len, max_edge_len):
-        """Add a vertex to the RRT graph"""
-        q = self.workspace.sample()
+    def has_path_to_goal(self):
+        """Return True if a path to the goal exists, False otherwise."""
+        return self.v_goal is not None
 
-        v_nearest, dist = self.closest_vertex(q)
-        if dist < min_edge_len:
-            return
-        q_nearest = v_nearest.coord
-
-        # move toward q as much as possible
-        if dist > max_edge_len:
-            q = q_nearest + (q - q_nearest) * max_edge_len / dist
-        if self.workspace.point_is_in_collision(q):
-            q = self.closest_point_not_in_collision(q, q_nearest)
-        # don't add if edge is in collision
-        if self.workspace.edge_is_in_collision(q_nearest, q):
-            return
-
+    def add_vertex(self, v_nearest, q):
+        """Add a vertex located at q and connected to v_nearest."""
         v = self.graph.add_vertex(q)
         v.connect(v_nearest)
         v.parent = v_nearest
+        return v
 
-    def end_condition(self, goal, goal_dist=0.5):
-        v_nearest, dist = self.closest_vertex(goal)
-        if dist <= goal_dist and not self.workspace.edge_is_in_collision(
-            v_nearest.coord, goal
-        ):
-            v = self.graph.add_vertex(goal)
-            v.connect(v_nearest)
-            v.parent = v_nearest
-            self.v_goal = v
-            return True
-        return False
+    def extend(self, goal, n=100, min_edge_len=0.5, max_edge_len=1, stop_early=True):
+        """Add a vertex to the RRT graph"""
+        count = 0
+        while count < n:
+            q = self.workspace.sample()
 
-    def find_path(self, goal):
-        v, dist = self.closest_vertex(goal)
-        path = [goal]
-        while v != None:
+            v_nearest, dist = self.closest_vertex(q)
+            if dist < min_edge_len:
+                continue
+            q_nearest = v_nearest.coord
+
+            # move toward q as much as possible
+            if dist > max_edge_len:
+                q = q_nearest + (q - q_nearest) * max_edge_len / dist
+
+            # don't add if edge is in collision
+            if self.workspace.edge_is_in_collision(q_nearest, q):
+                continue
+
+            v = self.add_vertex(v_nearest, q)
+            count += 1
+
+            if not self.has_path_to_goal():
+                if v.distance(
+                    goal
+                ) <= max_edge_len and not self.workspace.edge_is_in_collision(q, goal):
+                    self.v_goal = self.add_vertex(v, goal)
+                    count += 1
+
+            if self.has_path_to_goal() and stop_early:
+                return True
+
+        return self.has_path_to_goal()
+
+    def get_path_to_goal(self):
+        """Get the path to the goal node.
+
+        Returns a 2D array of points representing the path or None if no path
+        has been found."""
+        if not self.has_path_to_goal():
+            return None
+
+        path = []
+        v = self.v_goal
+        while v is not None:
             path.append(v.coord)
             v = v.parent
         return np.array(path)
@@ -658,13 +658,16 @@ def main():
     #planner = Bidirectional_RRT(workspace,start,RRT)
 
     # RRT with no max distance
-    planner = Unbounded_RRT(workspace, start)
+    planner = RRT(workspace, start)
 
     # Unbounded bidirectional RRT
     #planner = Bidirectional_RRT(workspace, start,Unbounded_RRT)
 
-    planner.query(start, goal)  
-    path = planner.find_path()
+    t = time.time()
+    planner.extend(goal)
+    query_time = time.time() - t
+
+    path = planner.get_path_to_goal()
     # planner.add_vertices(n=100, connect_multiple_vertices=False)
     # path = planner.RRT(start,goal)
     # alternative: use a grid-based planner (only practical for small dimensions)
@@ -674,8 +677,8 @@ def main():
     # planner = PRM(workspace)
     # planner.add_vertices(n=100)
 
-    print("preprocessing time:", planner.preprocessing_time)
-    print("query time:", planner.query_time)
+    print(f"query time: {query_time}")
+
     # plot the results
     plt.figure()
     ax = plt.gca()
@@ -683,7 +686,7 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    path.draw(ax,rgb=(0,0,0))
+    ax.plot(path[:, 0], path[:, 1], color="g")
     plt.show()
 
 

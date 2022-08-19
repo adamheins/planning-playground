@@ -12,9 +12,6 @@ class RRT_star(RRT):
     def __init__(self, workspace, q0):
         super().__init__(workspace, q0)
 
-        # updated when we find a path to the goal node
-        self.v_goal = None
-
     def vertex_cost(self, v):
         """Determine the cost to reach vertex v from the start."""
         cost = 0
@@ -26,9 +23,6 @@ class RRT_star(RRT):
     def edge_cost(self, qa, qb):
         """Return the cost of connecting two vertices"""
         return np.linalg.norm(qa - qb)
-
-    def has_path_to_goal(self):
-        return self.v_goal is not None
 
     def add_vertex(self, v_nearest, q, neighborhood_radius, rewire=True):
         """Add a vertex located at q to the graph connected to existing vertex parent."""
@@ -179,7 +173,7 @@ def main():
         pass
     query_time = time.time() - t
 
-    path = planner.find_path(goal)
+    path = planner.get_path_to_goal()
 
     print(f"query time: {query_time}")
 
@@ -190,8 +184,7 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    if type(path) == type(np.array([])):
-        ax.plot(path[:, 0], path[:, 1], color="g")
+    ax.plot(path[:, 0], path[:, 1], color="g")
     plt.show()
 
 
