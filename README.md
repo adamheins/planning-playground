@@ -23,7 +23,7 @@ Basic example of transforms associated with 2-link planar manipulator. In the
 diagram below, there are four frames, where the transformation matrix $T_{ij}$
 maps points expressed in Frame $j$ to Frame $i$.
 
-![Geometry diagram](./manipulator_frames.svg)
+![Geometry diagram](./figures/manipulator_frames.svg)
 
 Run the script:
 ```
@@ -37,6 +37,7 @@ obstacles. Planning is done between two points (start is green and goal is
 red). Planners are:
 
 * Probabilistic road map (PRM)
+* Rapidly-exploring random graph/tree (RRT)
 * Grid
 
 Run the script:

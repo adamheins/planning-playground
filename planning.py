@@ -1,5 +1,3 @@
-from gettext import translation
-from os import stat
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
@@ -88,7 +86,9 @@ class Workspace:
         The edge is discretized in steps of length h."""
         d = np.linalg.norm(xy2 - xy1)
         if d < h:
-            return not self.point_is_in_collision(xy1) and not self.point_is_in_collision(xy2)
+            return not self.point_is_in_collision(
+                xy1
+            ) and not self.point_is_in_collision(xy2)
 
         r = (xy2 - xy1) / d
         steps = np.arange(0, d, h)
@@ -198,12 +198,12 @@ class GraphPlanner:
         """Find the closest vertex belonging to graph to a another given graph T"""
         vertices_graph_T = T.graph
         vertices_graph = self.graph
-        min_dist = vertices_graph[0].distance(vertices_graph_T[0])
+        min_dist = vertices_graph[0].distance(vertices_graph_T[0].coord)
         v_closest = vertices_graph[0]
         v_closest_T = vertices_graph_T[0]
         for vertex in vertices_graph_T:
             for v in vertices_graph:
-                d = vertex.distance(v)
+                d = vertex.distance(v.coord)
 
                 if d < min_dist:
                     min_dist = d
@@ -451,7 +451,6 @@ class Bidirectional_RRT(RRG):
             return True
         return False
 
-
     def draw(self, ax):
         if self.ta is None:
             print("No solution")
@@ -462,10 +461,10 @@ class Bidirectional_RRT(RRG):
     def find_path(self):
         path_ta = self.ta.find_path()
         path_tb = self.tb.find_path()
-        v_ta,v_tb,_ = path_ta.closest_vertex_graph(path_tb)
+        v_ta, v_tb, _ = path_ta.closest_vertex_graph(path_tb)
         current = v_tb
         previous = v_ta
-        while previous.parent!= None:
+        while previous.parent != None:
             new = path_ta.graph.add_vertex(current.coord)
             new.connect(previous)
             previous = current
@@ -527,8 +526,6 @@ class Unbounded_RRT(RRT):
         v = self.graph.add_vertex(q)
         v.connect(v_nearest)
         v.parent = v_nearest
-    
-    
 
 
 class Unbounded_bidirectional_RRT(Bidirectional_RRT):
@@ -653,23 +650,14 @@ def main():
     # use an RRG planner
     # planner = RRG(workspace, start)
 
-    # RRT
-    #planner = RRT(workspace,start)
-
-    # double trees
-    #planner = Bidirectional_RRT(workspace,start,RRT)
-
-    # RRT with no max distance
     planner = RRT(workspace, start)
-
-    # Unbounded bidirectional RRT
-    #planner = Bidirectional_RRT(workspace, start,Unbounded_RRT)
 
     t = time.time()
     planner.extend(goal)
     query_time = time.time() - t
 
     path = planner.get_path_to_goal()
+
     # planner.add_vertices(n=100, connect_multiple_vertices=False)
     # path = planner.RRT(start,goal)
     # alternative: use a grid-based planner (only practical for small dimensions)
@@ -690,7 +678,6 @@ def main():
     ax.plot(goal[0], goal[1], "o", color="r")
     ax.plot(path[:, 0], path[:, 1], color="g")
     plt.show()
-
 
 
 if __name__ == "__main__":
