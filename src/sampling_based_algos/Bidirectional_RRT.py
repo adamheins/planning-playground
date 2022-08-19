@@ -16,9 +16,9 @@ class Bidirectional_RRT(RRG):
         v_ta = ta.graph.add_vertex(start)
         v_tb = tb.graph.add_vertex(goal)
         while ta.graph.n + tb.graph.n < n:
-            ta.expand(goal, n=1, min_edge_len=min_edge_len, max_edge_len=max_edge_len, niu=niu, stop_early=False)
+            ta.expand(goal, n=1, min_edge_len=min_edge_len, max_edge_len=max_edge_len, niu=niu, stop_early=False, divide_edges=False)
             # operate on second tree
-            tb.expand(start, n=1, min_edge_len=min_edge_len, max_edge_len=max_edge_len, niu=niu, stop_early=False)
+            tb.expand(start, n=1, min_edge_len=min_edge_len, max_edge_len=max_edge_len, niu=niu, stop_early=False, divide_edges=False)
 
             self.ta = ta
             self.tb = tb
