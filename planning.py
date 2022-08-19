@@ -357,6 +357,8 @@ class RRT(RRG):
 
     def extend(self, goal, n=100, min_edge_len=0.5, max_edge_len=1, stop_early=True):
         """Add a vertex to the RRT graph"""
+        # TODO much of this can be put back up into the RRG, which can probably
+        # also be combined better with the RRT*
         count = 0
         while count < n:
             q = self.workspace.sample()
