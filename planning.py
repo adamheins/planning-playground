@@ -85,10 +85,12 @@ class Workspace:
 
         The edge is discretized in steps of length h."""
         d = np.linalg.norm(xy2 - xy1)
-        if d == 0:
-            return False
-        r = (xy2 - xy1) / d
+        if d < h:
+            return not self.point_is_in_collision(
+                xy1
+            ) and not self.point_is_in_collision(xy2)
 
+        r = (xy2 - xy1) / d
         steps = np.arange(0, d, h)
         points = xy1 + steps[:, None] * r
         for point in points:
@@ -108,13 +110,8 @@ class Workspace:
             xy = (np.random.random(2) - 0.5) * [self.width, self.height]
             collision = self.point_is_in_collision(xy)
             # add this point if it is collision-free
-            if accept_point_in_collision or not collision:
+            if not collision or accept_point_in_collision:
                 samples.append(xy)
-            else:
-                # TODO write later
-                # Idea: while loop that moves point
-                # or try generate n* max_tries_factor
-                continue
 
         if n == 1:
             return samples[0]
@@ -162,16 +159,17 @@ class GraphPlanner:
         # return the k closest ones
         return [vo for _, vo in dists[:k]]
 
-    def neighbours_within_dist(self, v, dist, vertices=None):
-        """Get all vertices within dist of vertex v."""
+    # TODO this previously took a vertex, as the above function does
+    def neighbours_within_dist(self, q, dist, vertices=None, tol=1e-3):
+        """Get all vertices within dist of q."""
         if vertices is None:
             vertices = self.graph
 
         dists = []
         for vo in vertices:
-            if v is vo:
-                continue
-            dists.append((vo.distance(v.coord), vo))
+            r = vo.distance(q)
+            if r <= dist:
+                dists.append((r, vo))
 
         dists.sort(key=lambda x: x[0])
 
@@ -316,7 +314,7 @@ class RRG(GraphPlanner):
 
             # find and add additional nearby vertices
             if connect_multiple_vertices:
-                vs_near = self.neighbours_within_dist(v, near_dist)
+                vs_near = self.neighbours_within_dist(v.coord, near_dist)
                 for vo in vs_near:
                     # don't make duplicate edges
                     if vo.isneighbour(v):
@@ -343,71 +341,70 @@ class RRT(RRG):
         super().__init__(workspace, q0)
         self.v_start.parent = None
 
-    def query(
-        self,
-        start,
-        goal,
-        n=1000,
-        min_edge_len=0.5,
-        max_edge_len=1,
-    ):
-        new_size = self.graph.n + n
-        start_time = time.time()
-        while self.graph.n < new_size:
-            # TODO maybe change min and max edge len based on how many points have been taken?
-            # add radius with minimum path
-            self.expand_graph(min_edge_len, max_edge_len)
-            if self.end_condition(goal):
-                self.preprocessing_time = 0
-                self.query_time = time.time() - start_time
-                break
-        self.preprocessing_time = 0
-        self.query_time = time.time() - start_time
+        # updated when we find a path to the goal node
+        self.v_goal = None
 
-    def expand_graph(self, min_edge_len, max_edge_len):
-        """Add a vertex to the RRT graph"""
-        q = self.workspace.sample()
+    def has_path_to_goal(self):
+        """Return True if a path to the goal exists, False otherwise."""
+        return self.v_goal is not None
 
-        v_nearest, dist = self.closest_vertex(q)
-        # if dist < min_edge_len:
-        #     return
-        q_nearest = v_nearest.coord
-
-        # move toward q as much as possible
-        if dist > max_edge_len:
-            q = q_nearest + (q - q_nearest) * max_edge_len / dist
-        if self.workspace.point_is_in_collision(q):
-            q = self.closest_point_not_in_collision(q, q_nearest)
-        # don't add if edge is in collision
-        if self.workspace.edge_is_in_collision(q_nearest, q):
-            return
-
+    def add_vertex(self, v_nearest, q):
+        """Add a vertex located at q and connected to v_nearest."""
         v = self.graph.add_vertex(q)
         v.connect(v_nearest)
         v.parent = v_nearest
+        return v
 
-    def end_condition(self, goal, goal_dist=0.5):
-        v_nearest, dist = self.closest_vertex(goal)
-        if dist <= goal_dist and not self.workspace.edge_is_in_collision(
-            v_nearest.coord, goal
-        ):
-            v = self.graph.add_vertex(goal)
-            v.connect(v_nearest)
-            v.parent = v_nearest
-            self.v_goal = v
-            return True
-        return False
+    def extend(self, goal, n=100, min_edge_len=0.5, max_edge_len=1, stop_early=True):
+        """Add a vertex to the RRT graph"""
+        # TODO much of this can be put back up into the RRG, which can probably
+        # also be combined better with the RRT*
+        count = 0
+        while count < n:
+            q = self.workspace.sample()
 
-    def find_path(self):
-        t = GraphPlanner(UGraph())
-        t.graph.add_vertex(self.v_goal)
-        current = self.v_goal
-        while current.parent != None:
-            new_node = current.parent
-            t.graph.add_vertex(new_node)
-            t.graph.add_edge(current, new_node)
-            current = current.parent
-        return t
+            v_nearest, dist = self.closest_vertex(q)
+            if dist < min_edge_len:
+                continue
+            q_nearest = v_nearest.coord
+
+            # move toward q as much as possible
+            if dist > max_edge_len:
+                q = q_nearest + (q - q_nearest) * max_edge_len / dist
+
+            # don't add if edge is in collision
+            if self.workspace.edge_is_in_collision(q_nearest, q):
+                continue
+
+            v = self.add_vertex(v_nearest, q)
+            count += 1
+
+            if not self.has_path_to_goal():
+                if v.distance(
+                    goal
+                ) <= max_edge_len and not self.workspace.edge_is_in_collision(q, goal):
+                    self.v_goal = self.add_vertex(v, goal)
+                    count += 1
+
+            if self.has_path_to_goal() and stop_early:
+                return True
+
+        return self.has_path_to_goal()
+
+    def get_path_to_goal(self):
+        """Get the path to the goal node.
+
+        Returns a 2D array of points representing the path or None if no path
+        has been found."""
+        if not self.has_path_to_goal():
+            return None
+
+        path = []
+        v = self.v_goal
+        while v is not None:
+            path.append(v.coord)
+            v = v.parent
+        return np.array(path)
 
 
 class Bidirectional_RRT(RRG):
@@ -531,6 +528,37 @@ class Unbounded_RRT(RRT):
         v.parent = v_nearest
 
 
+class Unbounded_bidirectional_RRT(Bidirectional_RRT):
+    def __init__(self, workspace, q0):
+        super().__init__(workspace, q0)
+
+    def query(self, start, goal, k=1000, min_edge_len=0.5, max_edge_len=1, niu=0.8):
+        """Use two trees, one starting from start one from goal, to explore the space"""
+        start_time = time.time()
+        ta = Unbounded_RRT(self.workspace, start)
+        tb = Unbounded_RRT(self.workspace, goal)
+        v_ta = ta.graph.add_vertex(start)
+        v_tb = tb.graph.add_vertex(goal)
+        for _ in range(k):
+            ta.expand_graph(min_edge_len, max_edge_len, niu)
+
+            # operate on second tree
+            tb.expand_graph(min_edge_len, max_edge_len, niu)
+
+            if self.touch(ta, tb):
+                self.preprocessing_time = 0
+                self.query_time = time.time() - start_time
+                self.ta = ta
+                self.tb = tb
+                return
+            if ta.graph.n - tb.graph.n > 10:
+                ta, tb = tb, ta
+        self.preprocessing_time = 0
+        self.query_time = time.time() - start_time
+        self.ta = None
+        self.tb = None
+
+
 def grid_neighbour_indices(i, j, nx, ny):
     """Get the index of the current vertex and neighbouring vertices in a 2D
        grid but stored in a 1D array.
@@ -622,20 +650,13 @@ def main():
     # use an RRG planner
     # planner = RRG(workspace, start)
 
-    # RRT
-    # planner = RRT(workspace,start)
+    planner = RRT(workspace, start)
 
-    # double trees
-    # planner = Bidirectional_RRT(workspace,start,RRT)
+    t = time.time()
+    planner.extend(goal)
+    query_time = time.time() - t
 
-    # RRT with no max distance
-    # planner = Unbounded_RRT(workspace, start)
-
-    # Unbounded bidirectional RRT
-    planner = Bidirectional_RRT(workspace, start, Unbounded_RRT)
-
-    planner.query(start, goal)
-    path = planner.find_path()
+    path = planner.get_path_to_goal()
 
     # planner.add_vertices(n=100, connect_multiple_vertices=False)
     # path = planner.RRT(start,goal)
@@ -646,8 +667,8 @@ def main():
     # planner = PRM(workspace)
     # planner.add_vertices(n=100)
 
-    print("preprocessing time:", planner.preprocessing_time)
-    print("query time:", planner.query_time)
+    print(f"query time: {query_time}")
+
     # plot the results
     plt.figure()
     ax = plt.gca()
@@ -655,7 +676,7 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    path.draw(ax, rgb=(0, 0, 0))
+    ax.plot(path[:, 0], path[:, 1], color="g")
     plt.show()
 
 
