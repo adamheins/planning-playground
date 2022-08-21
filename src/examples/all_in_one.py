@@ -1,13 +1,12 @@
 
-from RRT_star.RRT_star_unbounded import RRT_star_unbounded
 from src.env.Workspace import Workspace,Circle,Rectangle
 from src.sampling_based_algos.RRG import RRG
 from src.sampling_based_algos.RRT import RRT
-from src.sampling_based_algos.Unbounded_RRT import Unbounded_RRT
 from src.sampling_based_algos.Bidirectional_RRT import Bidirectional_RRT
 from src.sampling_based_algos.RRT_star import RRT_star
-from src.sampling_based_algos.RRT_star import RRT_star
+
 import matplotlib.pyplot as plt
+import time
 
 def main():
      # create the workspace with some obstacles
@@ -27,41 +26,53 @@ def main():
     # start and goal locations
     start = (-8, -5)
     goal = (8, 9)
-
+    t = time.time()
     # use an RRG planner
     # planner = RRG(workspace, start)
 
     # RRT
-    #planner = RRT(workspace,start)
+    # planner = RRT(workspace,start)
+    # planner.extend( goal, n=200, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=False, stop_early=True)
 
     # double trees
     # planner = Bidirectional_RRT(workspace,start,RRT)
+    # planner.extend(goal, n=150, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=False, stop_early=True)
 
-    # RRT with no max distance
-    # planner = Unbounded_RRT(workspace, start)
+    # Unbounded RRT
+    # planner = RRT(workspace, start)
+    # planner.extend( goal, n=250, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=True, stop_early=True)
 
     # Unbounded bidirectional RRT
-   # planner = Bidirectional_RRT(workspace, start,Unbounded_RRT)
+    # planner = Bidirectional_RRT(workspace, start, RRT)
+    # planner.extend( goal, n=170, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=True, stop_early=True)
 
     # RRT_star
-    planner = RRT_star(workspace, start)
+    # planner = RRT_star(workspace, start)
+    # planner.extend( goal, n=150, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=False, stop_early=False)
+
+    # Unbounded RRT_star
+    # planner = RRT_star(workspace, start)
+    # planner.extend( goal, n=150, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=True, stop_early=False)
+
+    # bidirectional RRT_star
+    planner = Bidirectional_RRT(workspace, start, RRT_star)
+    planner.extend( goal, n=170, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=True, stop_early=True)
 
 
 
-    planner.expand(start, goal,n=300)
-    path = planner.find_path()
 
-    # planner.add_vertices(n=100, connect_multiple_vertices=False)
-    # path = planner.RRT(start,goal)
-    # alternative: use a grid-based planner (only practical for small dimensions)
-    # planner = Grid(workspace, 0.5)
 
-    # alternative: use a PRM planner
-    # planner = PRM(workspace)
-    # planner.add_vertices(n=100)
 
-    print("preprocessing time:", planner.preprocessing_time)
-    print("query time:", planner.query_time)
+    # while not planner.extend(goal, n=100, min_edge_len=0.5, max_edge_len=5):
+    #     pass
+    #planner.extend( goal, n=100, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=True, stop_early=True)
+    query_time = time.time() - t
+
+    path = planner.get_path_to_goal()
+
+    print(f"query time: {query_time}")
+    
+
     # plot the results
     plt.figure()
     ax = plt.gca()
@@ -69,8 +80,8 @@ def main():
     planner.draw(ax)
     ax.plot(start[0], start[1], "o", color="g")
     ax.plot(goal[0], goal[1], "o", color="r")
-    if path!=None:
-        path.draw(ax,rgb=(0.5,1,0))
+    if path is not None:
+        ax.plot(path[:, 0], path[:, 1], color="g")
     plt.show()
 
 

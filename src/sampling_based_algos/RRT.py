@@ -67,7 +67,7 @@ class RRT(RRG):
                 # add the new vertex
                 # TODO rewire_radius should be a function of count
                 v_nearest, _ = self.closest_vertex(q)
-                v = self.add_vertex(v_nearest, q, max_edge_len, rewire=True)
+                v = self.add_vertex(v_nearest, q)
                 count += 1
 
                 # try to connect to the goal if we don't already have a path
@@ -75,7 +75,7 @@ class RRT(RRG):
                     if v.distance(
                         goal
                     ) <= max_edge_len and not self.workspace.edge_is_in_collision(q, goal):
-                        self.v_goal = self.add_vertex(v, goal, max_edge_len, rewire=True)
+                        self.v_goal = self.add_vertex(v, goal)
                         count += 1
 
                 # if we just want a path and don't want to iterate further, stop

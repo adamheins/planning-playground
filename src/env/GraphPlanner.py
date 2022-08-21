@@ -50,9 +50,9 @@ class GraphPlanner:
 
         dists = []
         for vo in vertices:
-            if v is vo:
+            if tuple(v) == tuple(vo.coord):
                 continue
-            dists.append((vo.distance(v.coord), vo))
+            dists.append((vo.distance(v), vo))
 
         dists.sort(key=lambda x: x[0])
 
