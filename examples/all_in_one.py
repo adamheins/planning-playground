@@ -40,23 +40,23 @@ def main():
 
     # Unbounded RRT
     # planner = RRT(workspace, start)
-    # planner.extend( goal, n=250, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=True, stop_early=True)
+    # planner.extend( goal, n=300, min_edge_len=0.3, max_edge_len=1, niu=0.5, divide_edges=True, stop_early=True)
 
     # Unbounded bidirectional RRT
     # planner = Bidirectional_RRT(workspace, start, RRT)
     # planner.extend( goal, n=170, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=True, stop_early=True)
 
     # RRT_star
-    # planner = RRT_star(workspace, start)
-    # planner.extend( goal, n=150, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=False, stop_early=False)
+    planner = RRT_star(workspace, start)
+    planner.extend( goal, n=300, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=False, stop_early=False)
 
     # Unbounded RRT_star
     # planner = RRT_star(workspace, start)
-    # planner.extend( goal, n=150, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=True, stop_early=False)
+    # planner.extend( goal, n=300, min_edge_len=0.3, max_edge_len=1, niu=0.5, divide_edges=True, stop_early=False)
 
     # bidirectional RRT_star
-    planner = Bidirectional_RRT(workspace, start, RRT_star)
-    planner.extend( goal, n=170, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=True, stop_early=True)
+    # planner = Bidirectional_RRT(workspace, start, RRT_star)
+    # planner.extend( goal, n=400, min_edge_len=0.3, max_edge_len=1, niu=0.5, divide_edges=True, stop_early=True)
 
 
 

@@ -86,17 +86,19 @@ class RRT_star(RRT):
 
             # process all samples
             while len(qs) > 0:
+                # print(count)
                 q = qs.pop()
                 v_nearest, dist = self.closest_vertex(q)
                 q = self.steer(q, v_nearest, dist, niu, min_edge_len)
                 if q is None:
                     continue
-
+                count += 1
                 # add the new vertex
                 # TODO rewire_radius should be a function of count
                 v_nearest, _ = self.closest_vertex(q)
-                v = self.add_vertex(v_nearest, q, max_edge_len, rewire=True)
-                count += 1
+                radius = min(7*(np.log(count)/count)**(0.5), min_edge_len)
+                v = self.add_vertex(v_nearest, q, radius, rewire=True)
+                
 
                 # try to connect to the goal if we don't already have a path
                 if not self.has_path_to_goal():
