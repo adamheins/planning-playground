@@ -1,6 +1,7 @@
-from src.env.GraphPlanner import GraphPlanner
+from .graph_planner import GraphPlanner
 from pgraph import UGraph
 import numpy as np
+
 
 def grid_neighbour_indices(i, j, nx, ny):
     """Get the index of the current vertex and neighbouring vertices in a 2D

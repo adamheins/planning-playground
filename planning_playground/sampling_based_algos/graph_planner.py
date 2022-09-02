@@ -2,6 +2,7 @@ import time
 from pgraph import UGraph, UVertex
 import numpy as np
 
+
 class GraphPlanner:
     """Base class for all graph-based planners."""
 

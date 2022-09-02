@@ -1,9 +1,6 @@
-
-
 import numpy as np
 from pgraph import UGraph
-from src.sampling_based_algos.RRT import RRT
-
+from .rrt import RRT
 
 
 class RRT_star(RRT):
@@ -17,7 +14,7 @@ class RRT_star(RRT):
         while v.parent is not None:
             cost += self.edge_cost(v.coord, v.parent.coord)
             v = v.parent
-       
+
         return cost
 
     def edge_cost(self, qa, qb):
@@ -48,7 +45,7 @@ class RRT_star(RRT):
             self.rewire(v, neighborhood)
 
         return v
-    
+
     def extend(
         self,
         goal,
@@ -96,16 +93,19 @@ class RRT_star(RRT):
                 # add the new vertex
                 # TODO rewire_radius should be a function of count
                 v_nearest, _ = self.closest_vertex(q)
-                radius = min(7*(np.log(count)/count)**(0.5), min_edge_len)
+                radius = min(1 * (np.log(count) / count) ** (0.5), min_edge_len)
                 v = self.add_vertex(v_nearest, q, radius, rewire=True)
-                
 
                 # try to connect to the goal if we don't already have a path
                 if not self.has_path_to_goal():
                     if v.distance(
                         goal
-                    ) <= max_edge_len and not self.workspace.edge_is_in_collision(q, goal):
-                        self.v_goal = self.add_vertex(v, goal, max_edge_len, rewire=True)
+                    ) <= max_edge_len and not self.workspace.edge_is_in_collision(
+                        q, goal
+                    ):
+                        self.v_goal = self.add_vertex(
+                            v, goal, max_edge_len, rewire=True
+                        )
                         count += 1
 
                 # if we just want a path and don't want to iterate further, stop
@@ -114,7 +114,6 @@ class RRT_star(RRT):
                     return True
 
         return self.has_path_to_goal()
-
 
     def rewire(self, v, neighborhood):
         """Rewire edges in the neighborhood to minimize cost.
@@ -132,6 +131,3 @@ class RRT_star(RRT):
                 self.graph.remove(v_near.edge)
                 v_near.parent = v
                 v_near.edge = self.graph.add_edge(v, v_near)
-
-
-

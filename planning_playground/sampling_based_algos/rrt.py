@@ -1,5 +1,5 @@
 import numpy as np
-from src.sampling_based_algos.RRG import RRG
+from .rrg import RRG
 
 
 class RRT(RRG):
@@ -74,7 +74,9 @@ class RRT(RRG):
                 if not self.has_path_to_goal():
                     if v.distance(
                         goal
-                    ) <= max_edge_len and not self.workspace.edge_is_in_collision(q, goal):
+                    ) <= max_edge_len and not self.workspace.edge_is_in_collision(
+                        q, goal
+                    ):
                         self.v_goal = self.add_vertex(v, goal)
                         count += 1
 

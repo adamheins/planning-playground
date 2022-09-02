@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib import patches
 
+
 class Rectangle:
     """Rectangular obstacle."""
 
@@ -81,7 +82,7 @@ class Workspace:
 
         The edge is discretized in steps of length h."""
         d = np.linalg.norm(xy2 - xy1)
-        if d ==0:
+        if d == 0:
             return False
         r = (xy2 - xy1) / d
 

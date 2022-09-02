@@ -1,7 +1,8 @@
-from src.env.GraphPlanner import GraphPlanner
+from .graph_planner import GraphPlanner
 import time
 from pgraph import UGraph
 import numpy as np
+
 
 class RRG(GraphPlanner):
     """Rapidly-exploring random graph.

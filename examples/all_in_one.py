@@ -1,26 +1,27 @@
-
-from src.env.Workspace import Workspace,Circle,Rectangle
-from src.sampling_based_algos.RRG import RRG
-from src.sampling_based_algos.RRT import RRT
-from src.sampling_based_algos.Bidirectional_RRT import Bidirectional_RRT
-from src.sampling_based_algos.RRT_star import RRT_star
+from planning_playground.env import Workspace, Circle, Rectangle
+from planning_playground.sampling_based_algos import (
+    RRG,
+    RRT,
+    Bidirectional_RRT,
+    RRT_star,
+)
 
 import matplotlib.pyplot as plt
 import time
 
+
 def main():
-     # create the workspace with some obstacles
+    # create the workspace with some obstacles
     workspace = Workspace(20, 20)
     workspace.obstacles = [
-        #Rectangle((0, -2), 1, 3),
-        #Rectangle((-2, -4), 6, 1),
-        #Rectangle((-2, 1), 3, 1),
+        # Rectangle((0, -2), 1, 3),
+        # Rectangle((-2, -4), 6, 1),
+        # Rectangle((-2, 1), 3, 1),
         Rectangle((-5, -10), 1, 15),
         Rectangle((-1, -5), 1, 15),
         Rectangle((5, -10), 1, 15),
-
-        #Rectangle((-4, 3), 1, 2),
-        #Circle((-3, 2), 0.5),
+        # Rectangle((-4, 3), 1, 2),
+        # Circle((-3, 2), 0.5),
     ]
 
     # start and goal locations
@@ -48,7 +49,15 @@ def main():
 
     # RRT_star
     planner = RRT_star(workspace, start)
-    planner.extend( goal, n=300, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=False, stop_early=False)
+    planner.extend(
+        goal,
+        n=300,
+        min_edge_len=0.1,
+        max_edge_len=1.5,
+        niu=1,
+        divide_edges=False,
+        stop_early=False,
+    )
 
     # Unbounded RRT_star
     # planner = RRT_star(workspace, start)
@@ -58,20 +67,14 @@ def main():
     # planner = Bidirectional_RRT(workspace, start, RRT_star)
     # planner.extend( goal, n=400, min_edge_len=0.3, max_edge_len=1, niu=0.5, divide_edges=True, stop_early=True)
 
-
-
-
-
-
     # while not planner.extend(goal, n=100, min_edge_len=0.5, max_edge_len=5):
     #     pass
-    #planner.extend( goal, n=100, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=True, stop_early=True)
+    # planner.extend( goal, n=100, min_edge_len=0.5, max_edge_len=1, niu=1, divide_edges=True, stop_early=True)
     query_time = time.time() - t
 
     path = planner.get_path_to_goal()
 
     print(f"query time: {query_time}")
-    
 
     # plot the results
     plt.figure()
@@ -87,5 +90,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

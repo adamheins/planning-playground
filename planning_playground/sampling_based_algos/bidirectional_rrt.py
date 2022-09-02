@@ -1,4 +1,4 @@
-from src.sampling_based_algos.RRG import RRG
+from .rrg import RRG
 import numpy as np
 
 
@@ -7,22 +7,49 @@ class Bidirectional_RRT(RRG):
         super().__init__(workspace, q0)
         self.rrt_cls = rrt_cls
 
-    def extend(self, goal, n=100, min_edge_len=0.5, max_edge_len=1, niu=1,  stop_early=True, divide_edges=False ):
+    def extend(
+        self,
+        goal,
+        n=100,
+        min_edge_len=0.5,
+        max_edge_len=1,
+        niu=1,
+        stop_early=True,
+        divide_edges=False,
+    ):
         """Use two trees, one starting from start one from goal, to explore the workspace"""
         ta = self.rrt_cls(self.workspace, self.v_start.coord)
         tb = self.rrt_cls(self.workspace, goal)
         self.ta = ta
         self.tb = tb
         while ta.graph.n + tb.graph.n < n:
-            ta.extend(tb.v_start.coord, n=1, min_edge_len=min_edge_len, max_edge_len=max_edge_len, niu=niu, stop_early=stop_early, divide_edges=divide_edges)
+            ta.extend(
+                tb.v_start.coord,
+                n=1,
+                min_edge_len=min_edge_len,
+                max_edge_len=max_edge_len,
+                niu=niu,
+                stop_early=stop_early,
+                divide_edges=divide_edges,
+            )
             # operate on second tree
-            tb.extend(ta.v_start.coord, n=1, min_edge_len=min_edge_len, max_edge_len=max_edge_len, niu=niu, stop_early=stop_early, divide_edges=divide_edges)
+            tb.extend(
+                ta.v_start.coord,
+                n=1,
+                min_edge_len=min_edge_len,
+                max_edge_len=max_edge_len,
+                niu=niu,
+                stop_early=stop_early,
+                divide_edges=divide_edges,
+            )
 
             self.ta = ta
             self.tb = tb
             if not self.has_path_to_goal():
                 v, v_tb, dist = ta.closest_vertex_to_graph(tb)
-                if dist < max_edge_len and not self.workspace.edge_is_in_collision(v.coord, v_tb.coord):
+                if dist < max_edge_len and not self.workspace.edge_is_in_collision(
+                    v.coord, v_tb.coord
+                ):
                     v.connect(v_tb)
                     ta.graph.add_edge(v, v_tb)
                     ta.v_goal = v
@@ -34,12 +61,10 @@ class Bidirectional_RRT(RRG):
                 return True
 
         return self.has_path_to_goal()
-                
 
     def has_path_to_goal(self):
         """Return True if a path to the goal exists, False otherwise."""
         return self.ta.v_goal is not None
-  
 
     def draw(self, ax):
         """Draw both graphs"""
@@ -55,4 +80,4 @@ class Bidirectional_RRT(RRG):
             return None
         path_ta = self.ta.get_path_to_goal()[::-1]
         path_tb = self.tb.get_path_to_goal()
-        return np.append(path_ta, path_tb,axis = 0)
+        return np.append(path_ta, path_tb, axis=0)

@@ -1,13 +1,13 @@
-from src.env.GraphPlanner import GraphPlanner
+from .graph_planner import GraphPlanner
 import time
-from igraph import Graph
+from pgraph import UGraph
 
 
 class PRM(GraphPlanner):
     """Probabilistic road-map for multi-query planning."""
 
     def __init__(self, workspace):
-        super().__init__(Graph())
+        super().__init__(UGraph())
         self.workspace = workspace
 
     def add_vertices(self, n, k):
