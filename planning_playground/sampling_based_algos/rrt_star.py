@@ -1,6 +1,7 @@
 import numpy as np
 from pgraph import UGraph
 from .rrt import RRT
+import time
 
 
 class RRT_star(RRT):
@@ -21,13 +22,18 @@ class RRT_star(RRT):
         """Return the cost of connecting two vertices"""
         return np.linalg.norm(qa - qb)
 
-    def add_vertex(self, v_nearest, q, neighborhood_radius, rewire=True):
+    def add_vertex(self, v_nearest, q, neighborhood_radius, neighborhood=None, rewire=True):
         """Add a vertex located at q to the graph connected to existing vertex parent."""
+        t = time.time()
         v = self.graph.add_vertex(q)
 
         # nominal cost of connecting to nearest neighbor
         cost = self.vertex_cost(v_nearest) + self.edge_cost(v_nearest.coord, q)
-        neighborhood = self.neighbours_within_dist(q, neighborhood_radius)
+        cap = 5
+        if neighborhood is None:
+            neighborhood = self.neighbours_within_dist(q, neighborhood_radius, cap)
+        else:
+            neighborhood = neighborhood[:min(cap,len(neighborhood))]
 
         # see if cost is reduced by connecting to any of the vertices in the neighborhood
         for v_near in neighborhood:
@@ -43,7 +49,7 @@ class RRT_star(RRT):
 
         if rewire:
             self.rewire(v, neighborhood)
-
+        #print("adding time",time.time()-t)
         return v
 
     def extend(
@@ -66,9 +72,21 @@ class RRT_star(RRT):
         Returns True if a path to the goal exists, False otherwise.
         """
         count = 0
+        prev= 0
+        sample = 1
+        #t = time.time()
         while count < n:
+            # if count!= prev:
+            #     #print(count)
+            #     print(prev,sample)
+            #     prev= count
+            #     sample = 1
+                #t = time.time()
             q = self.workspace.sample()
-            v_nearest, dist = self.closest_vertex(q)
+            
+            neighborhood = self.neighbours_within_dist(q, max(self.workspace.width,self.workspace.height), cap=10)
+            v_nearest = neighborhood[0]
+            dist = self.edge_cost(q,v_nearest.coord)
 
             # if new vertex would be too far away, split it so that each new
             # vertex is within max_edge_len of each other
@@ -83,18 +101,18 @@ class RRT_star(RRT):
 
             # process all samples
             while len(qs) > 0:
+                #t = time.time()
                 # print(count)
                 q = qs.pop()
-                v_nearest, dist = self.closest_vertex(q)
+                v_nearest, dist = self.closest_vertex(q, vertices=neighborhood)
                 q = self.steer(q, v_nearest, dist, niu, min_edge_len)
                 if q is None:
                     continue
                 count += 1
                 # add the new vertex
-                # TODO rewire_radius should be a function of count
-                v_nearest, _ = self.closest_vertex(q)
                 radius = min(1 * (np.log(count) / count) ** (0.5), min_edge_len)
-                v = self.add_vertex(v_nearest, q, radius, rewire=True)
+                v = self.add_vertex(v_nearest, q, radius, neighborhood=neighborhood, rewire=True)
+                neighborhood.append(v)
 
                 # try to connect to the goal if we don't already have a path
                 if not self.has_path_to_goal():
@@ -112,7 +130,8 @@ class RRT_star(RRT):
                 # now
                 if self.has_path_to_goal() and stop_early:
                     return True
-
+                #print(time.time() - t)
+            sample +=1
         return self.has_path_to_goal()
 
     def rewire(self, v, neighborhood):

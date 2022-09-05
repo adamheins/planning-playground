@@ -49,15 +49,7 @@ def main():
 
     # RRT_star
     planner = RRT_star(workspace, start)
-    planner.extend(
-        goal,
-        n=300,
-        min_edge_len=0.1,
-        max_edge_len=1.5,
-        niu=1,
-        divide_edges=False,
-        stop_early=False,
-    )
+    planner.extend(goal, n=300, min_edge_len=0.5, max_edge_len=1.5, niu=1, divide_edges=False, stop_early=False)
 
     # Unbounded RRT_star
     # planner = RRT_star(workspace, start)

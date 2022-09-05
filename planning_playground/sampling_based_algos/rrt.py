@@ -65,8 +65,6 @@ class RRT(RRG):
                     continue
 
                 # add the new vertex
-                # TODO rewire_radius should be a function of count
-                v_nearest, _ = self.closest_vertex(q)
                 v = self.add_vertex(v_nearest, q)
                 count += 1
 

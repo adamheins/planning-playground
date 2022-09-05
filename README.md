@@ -28,6 +28,8 @@ red). Planners are:
 * RRT
 * Unbounded RRT
 * Bidirectional RRT
+* RRT star
+* Unbounded RRT star
 
 Run the script:
 ```

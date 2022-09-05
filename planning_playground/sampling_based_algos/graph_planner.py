@@ -44,21 +44,21 @@ class GraphPlanner:
         # return the k closest ones
         return [vo for _, vo in dists[:k]]
 
-    def neighbours_within_dist(self, v, dist, vertices=None):
+    def neighbours_within_dist(self, q, dist, cap=10, vertices=None):
         """Get all vertices within dist of vertex v."""
         if vertices is None:
             vertices = self.graph
 
         dists = []
         for vo in vertices:
-            if tuple(v) == tuple(vo.coord):
+            if tuple(q) == tuple(vo.coord):
                 continue
-            dists.append((vo.distance(v), vo))
+            dists.append((vo.distance(q), vo))
 
         dists.sort(key=lambda x: x[0])
 
         # return all neighbours with distance dist
-        return [vo for d, vo in dists if d <= dist]
+        return [vo for d, vo in dists if d <= dist][:min(cap,len(dists))]
 
     def closest_vertex(self, q, vertices=None):
         """Get closest vertex in the graph, or a subset of vertices."""
