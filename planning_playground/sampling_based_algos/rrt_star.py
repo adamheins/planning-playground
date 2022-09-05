@@ -24,7 +24,7 @@ class RRT_star(RRT):
 
     def add_vertex(self, v_nearest, q, neighborhood_radius, neighborhood=None, rewire=True):
         """Add a vertex located at q to the graph connected to existing vertex parent."""
-        t = time.time()
+        #t = time.time()
         v = self.graph.add_vertex(q)
 
         # nominal cost of connecting to nearest neighbor
@@ -84,7 +84,7 @@ class RRT_star(RRT):
                 #t = time.time()
             q = self.workspace.sample()
             
-            neighborhood = self.neighbours_within_dist(q, max(self.workspace.width,self.workspace.height), cap=10)
+            neighborhood = self.neighbours_within_dist(q, max(2*self.workspace.width,2*self.workspace.height), cap=10)
             v_nearest = neighborhood[0]
             dist = self.edge_cost(q,v_nearest.coord)
 
@@ -150,3 +150,4 @@ class RRT_star(RRT):
                 self.graph.remove(v_near.edge)
                 v_near.parent = v
                 v_near.edge = self.graph.add_edge(v, v_near)
+    

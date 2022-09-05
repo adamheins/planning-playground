@@ -49,7 +49,7 @@ def main():
 
     # RRT_star
     planner = RRT_star(workspace, start)
-    planner.extend(goal, n=300, min_edge_len=0.5, max_edge_len=1.5, niu=1, divide_edges=False, stop_early=False)
+    planner.extend(goal, n=300, min_edge_len=0.1, max_edge_len=1.5, niu=1, divide_edges=False, stop_early=False)
 
     # Unbounded RRT_star
     # planner = RRT_star(workspace, start)
@@ -77,6 +77,8 @@ def main():
     ax.plot(goal[0], goal[1], "o", color="r")
     if path is not None:
         ax.plot(path[:, 0], path[:, 1], color="g")
+        final = planner.optimize_path_to_goal(path)
+        ax.plot(final[:, 0], final[:, 1], color="purple")
     plt.show()
 
 

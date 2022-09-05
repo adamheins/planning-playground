@@ -117,3 +117,20 @@ class RRT(RRG):
             path.append(v.coord)
             v = v.parent
         return np.array(path)
+    
+    def optimize_path_to_goal(self,path):
+        """ Optimize the 2D array containing the path to goal node.
+        
+        Returns a 2D array of points representing the path or None if no path
+        has been found."""
+        if path is None:
+            return None
+        path = path[::-1]
+        final = [path[0]]
+        for i in range(1,len(path)):
+            if self.workspace.edge_is_in_collision(final[len(final)-1],path[i]):
+                final.append(path[i-1])
+        final.append(path[len(path)-1])
+        return np.array(final)
+
+
